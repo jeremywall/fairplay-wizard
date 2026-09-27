@@ -8,7 +8,7 @@ This file gives Claude Code guidance for working in this repository.
 
 - **Users:** coaches (head and assistant) only. There are no parent, player, or league-admin roles.
 - **Sport:** baseball first, with softball as a close variant. Rules follow Little League and local-league conventions, **not** MLB rules (see Domain rules).
-- **Status:** early development. Sign-up/sign-in, teams, game settings, and roster + batting-order management work end to end, and the batting-order carry-over logic is in `src/domain`. Games, the rotation generator and season stats are next.
+- **Status:** early development. Sign-up/sign-in, teams, game settings, and roster + batting-order management work end to end, and the batting-order carry-over logic is in `src/domain`. The lineup generator works (attendance + options → lineup grid, player summary, fairness readout, rule check, Regenerate) but lineups aren't saved yet. Next: saving games, manual edits, finalizing (batting-order pointer, plate appearances) and season stats.
 
 ## Tech stack (all Cloudflare)
 
@@ -38,7 +38,8 @@ This file gives Claude Code guidance for working in this repository.
 ```
 /public                   # Static assets served by the Worker (Workers Static Assets)
   index.html              # SPA shell (loads HTMX + built CSS)
-  /js, /css               # Build output (htmx.min.js, Tailwind CSS), gitignored
+  /js/app.js              # Small UI glue (lineup setup form)
+  /js/htmx.min.js, /css   # Build output, gitignored
 /src
   index.ts                # Worker entry: Hono app, middleware, route mounting
   /routes                 # HTMX route handlers returning HTML partials

@@ -15,6 +15,7 @@ export function teamPage(team: TeamDetails, players: Player[]) {
       <button class="text-sm text-slate-600 hover:underline" hx-get="/app/home" hx-target="#main" hx-swap="innerHTML">← All teams</button>
       <h2 class="mt-2 text-2xl font-semibold">${team.name}</h2>
     </div>
+    <button class="min-h-11 w-full rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800" hx-get="/app/teams/${team.id}/lineup" hx-target="#main" hx-swap="innerHTML">Plan a game</button>
     ${teamSettings(team)}
     ${roster(team.id, players)}
   </section>`;

@@ -90,8 +90,8 @@ Soft rules are preferences the generator optimizes for. Violations appear as inf
 
 | # | Preference |
 |---|---|
-| SR-1 | A player shouldn't play the **same position twice** in a game unless that's unavoidable given attendance and the hard rules. The generator maximizes position variety before repeating, and a repeat it couldn't avoid isn't flagged. |
-| SR-2 | Each player's field innings should be **balanced between infield and outfield**, not just meet the HR-2/HR-6 minimums. |
+| SR-1 | A player shouldn't play the **same position twice** in a game unless that's unavoidable given attendance and the hard rules. The generator maximizes position variety before repeating. A pitching stint counts as one turn at pitcher (its length is governed by HR-9/HR-10), and a repeat is only flagged when the player has no more field innings than there are fielded positions. |
+| SR-2 | Each player's field innings should be **balanced between infield and outfield**, not just meet the HR-2/HR-6 minimums. A notice is shown when the difference is more than 2 innings. |
 | SR-3 | Fairness **evens out across the season**. When choices are otherwise equal, favor players with fewer season-to-date field innings, infield innings, or positions played, and fewer bench innings. |
 
 ## 5. Batting order
@@ -109,6 +109,9 @@ Implemented in `src/domain/batting-order.ts`.
 
 ## 6. Generator
 
+Implemented in `src/domain/generator.ts`. Each attempt plans a round-robin bench schedule, then pitching stints, then fills the other positions inning by inning with a minimum-cost assignment whose costs steer toward the rules. Attempts are scored with the rule check. The generator stops after 8 rule-compliant lineups (keeping the best by soft-rule cost), or after 30 attempts with none, which only happens when the rules can't all be met. This keeps a request to a few milliseconds of CPU.
+
+
 - The generator takes attendance, game options, the team's rules settings and season-to-date stats (SR-3), and returns a complete lineup: one position per present player per inning.
 - It must meet every hard rule when that's feasible, and score well on the soft rules.
 - **Randomized:** each run shuffles its internal ordering (who is first in line for bench, pitcher, infield, and so on) with no fixed seed. The same inputs can produce a different lineup on Regenerate. Randomization only chooses between compliant lineups and never trades away hard-rule compliance. This is a property to keep through any future generator change.
@@ -118,7 +121,7 @@ Implemented in `src/domain/batting-order.ts`.
 
 This is a read-only summary shown above the rule check. It is not a rule, and it doesn't feed back into the generator.
 
-- For the present players, compute the **spread** (max − min) of bench innings, infield innings and outfield innings.
+- For the present players, compute the **spread** (max − min) of bench innings, infield innings and outfield innings. Infield here uses the rule category, so it includes pitcher and catcher.
 - The label comes from the largest spread: **Excellent** (≤ 1), **Good** (≤ 2), **Uneven** (> 2).
 - Show the three raw spreads next to the label (for example, "bench ±1, infield ±2, outfield ±1"). Don't use a composite 0–100 score.
 

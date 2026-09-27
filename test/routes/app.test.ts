@@ -74,6 +74,73 @@ describe("app routes", () => {
   });
 });
 
+describe("lineup routes", () => {
+  async function teamWithPlayers(count: number) {
+    const cookie = await signUp("Pat");
+    const teamId = await createTeam(cookie, "Tigers");
+    let html = "";
+    for (let i = 1; i <= count; i++) {
+      html = await (await post(`/app/teams/${teamId}/players`, { name: `Kid ${i}` }, { Cookie: cookie })).text();
+    }
+    const playerIds = [...html.matchAll(/players\/([^/"]+)\/move\?direction=up/g)].map((m) => m[1]);
+    return { cookie, teamId, playerIds };
+  }
+
+  function generate(teamId: string, cookie: string, playerIds: string[], extra: Record<string, string> = {}) {
+    const body = new URLSearchParams({ innings: "6", alignmentMode: "9", pitcherInningLimit: "2", ...extra });
+    for (const id of playerIds) body.append("player", id);
+    return exports.default.fetch(`${ORIGIN}/app/teams/${teamId}/lineup`, {
+      method: "POST",
+      headers: { Origin: ORIGIN, "HX-Request": "true", Cookie: cookie },
+      body,
+    });
+  }
+
+  it("shows the setup form with the roster as an attendance checklist", async () => {
+    const { cookie, teamId } = await teamWithPlayers(3);
+    const res = await exports.default.fetch(`${ORIGIN}/app/teams/${teamId}/lineup`, { headers: { Cookie: cookie } });
+    const page = await res.text();
+    expect(page).toContain("Who's here?");
+    expect(page.match(/data-attendance/g)).toHaveLength(3);
+  });
+
+  it("asks for at least 7 players", async () => {
+    const { cookie, teamId, playerIds } = await teamWithPlayers(7);
+    const page = await (await generate(teamId, cookie, playerIds.slice(0, 6))).text();
+    expect(page).toContain("Check at least 7 players as present (6 checked).");
+  });
+
+  it("generates a lineup that meets every hard rule for a typical game", async () => {
+    const { cookie, teamId, playerIds } = await teamWithPlayers(11);
+    const page = await (await generate(teamId, cookie, playerIds, { alignmentMode: "10" })).text();
+    expect(page).not.toMatch(/HR-\d+<\/span>/);
+    expect(page).not.toContain("Some rules can't all be met");
+    expect(page.match(/<tr>/g)?.length).toBeGreaterThanOrEqual(22); // grid + summary rows
+    expect(page).toContain(">LC<");
+    expect(page).toContain("Regenerate");
+  });
+
+  it("reports rules that can't be met instead of failing", async () => {
+    const { cookie, teamId, playerIds } = await teamWithPlayers(7);
+    const page = await (await generate(teamId, cookie, playerIds, { innings: "9", pitcherInningLimit: "1" })).text();
+    expect(page).toContain("HR-9");
+    expect(page).toContain("Some rules can't all be met");
+  });
+
+  it("ignores players from other teams", async () => {
+    const { cookie, teamId, playerIds } = await teamWithPlayers(7);
+    const other = await teamWithPlayers(1);
+    const page = await (await generate(teamId, cookie, [...playerIds.slice(0, 6), other.playerIds[0]])).text();
+    expect(page).toContain("(6 checked)");
+  });
+
+  it("is limited to the team's coaches", async () => {
+    const { teamId, playerIds } = await teamWithPlayers(7);
+    const stranger = await signUp("Sam");
+    expect((await generate(teamId, stranger, playerIds)).status).toBe(404);
+  });
+});
+
 describe("roster routes", () => {
   it("adds, reorders and removes players", async () => {
     const cookie = await signUp("Pat");

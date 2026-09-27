@@ -3,6 +3,7 @@ import { createMiddleware } from "hono/factory";
 import { addPlayer, listPlayers, movePlayer, removePlayer } from "../db/players";
 import { createTeam, getTeam, listTeamsForCoach, requireTeamAccess, updateTeamSettings } from "../db/teams";
 import { requireUser } from "../middleware/session";
+import { lineupRoutes } from "./lineup";
 import type { AppEnv } from "../types";
 import { loginForm } from "../views/auth";
 import { roster, teamPage, teamSettings } from "../views/roster";
@@ -28,6 +29,8 @@ const requireTeam = createMiddleware<AppEnv>(async (c, next) => {
 });
 appRoutes.use("/teams/:teamId", requireTeam);
 appRoutes.use("/teams/:teamId/*", requireTeam);
+
+appRoutes.route("/teams/:teamId/lineup", lineupRoutes);
 
 appRoutes.post("/teams", async (c) => {
   const user = c.get("user")!;
