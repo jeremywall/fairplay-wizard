@@ -46,8 +46,9 @@ This file gives Claude Code guidance for working in this repository.
   /auth                   # Better Auth config
   /middleware             # Session loading/requireUser, same-origin CSRF check
   /db                     # Data-access layer (team-scoped queries)
-  /domain                 # Pure logic: rotation, batting order, fairness stats
+  /domain                 # Pure logic: positions, rules/ (one module per rule), generator, batting order, fairness
   /styles/input.css       # Tailwind entry
+/docs/rules.md            # Fairplay rules: source of truth for the domain logic
 /migrations               # D1 SQL migrations (wrangler d1 migrations)
 /scripts                  # copy-vendor.mjs, generate-auth-schema.mjs
 /test                     # Vitest tests (domain, db, routes)
@@ -82,27 +83,26 @@ npx wrangler secret put BETTER_AUTH_SECRET          # Rotate the production auth
 
 ## Domain rules
 
-These rules are the core of the product. Keep them in `src/domain` and cover them with tests.
+**[`docs/rules.md`](docs/rules.md) is the source of truth for the fairplay rules.** Read it before changing anything in `src/domain`, the generator, the rule check, or the lineup views. When a rule changes, update `docs/rules.md` first, then the rule module and its tests. Keep rule ids (HR-n, SR-n, BO-n) in code, tests and UI messages so they can be traced back to the doc.
 
 ### Core features (MVP)
-1. **Team & roster management:** a coach creates a team and adds and removes players.
-2. **Auto rotation generator:** builds the fielding positions for each inning and the batting order for a game, given the players present that day.
-3. **Season fairness stats:** per player: innings played, innings sat, infield vs. outfield innings, positions played, and plate appearances.
+1. **Team & roster management:** a coach creates a team, adds and removes players, and sets the fixed batting order. *(Done.)*
+2. **Lineup generator:** from attendance and game options, generates the fielding position for every inning and the batting order. Regenerate gives a different random lineup, and the coach can also edit it by hand. The rule check shows violations but never blocks saving.
+3. **Season fairness stats:** per player: innings played, innings sat, infield vs. outfield innings, positions played, innings pitched/caught, and plate appearances.
 
-**Out of scope for now:** pitching rules (pitch counts, rest days, pitcher/catcher eligibility), live in-game substitution tracking, and parent or league-admin access.
+**Out of scope for now:** pitch counts and rest days (pitching rules are per-game innings only), live in-game substitution tracking, and parent or league-admin access.
 
-### Batting order (continuous, carries over between games)
-- **Continuous batting order:** every rostered player who is present bats, whether or not they are in the field that inning.
-- The team has a **fixed batting order** that does **not** restart at the top each game. The next game **resumes with the next batter** after the last player who batted in the previous game.
-- **Absences:** absent players are skipped for that game. The carry-over pointer follows the last player who **actually batted**, so the next game starts with the next player in the fixed order after that player, skipping anyone absent.
-- Persist the last-batter pointer per team, updated when a game is finalized, so the order can be reconstructed and audited.
-
-### Fielding rotation fairness constraints
-- **Minimum play:** each present player plays at least a minimum number of defensive innings/outs per game. Make the value configurable per team because league rules differ (for example, 6 defensive outs).
-- **No consecutive sitting:** no player sits out two innings in a row, and bench innings are spread as evenly as possible.
-- **Infield/outfield balance:** every player gets infield innings, and no player spends the whole game in the outfield.
-- Use season-to-date stats to break ties so that fairness evens out across games, not just within one game.
-- The coach can manually adjust the generated lineup. Show them any constraint violations instead of silently blocking the change.
+### Rules at a glance (details and exact wording in `docs/rules.md`)
+- **Positions** depend on attendance: at least 7 players are needed, with 2 outfielders (LC/RC) at 7–8 present, 3 at 9, and 4 at 10+ in 10-position mode. **Pitcher and catcher count as infield.**
+- **Hard rules** (errors):
+  - infield/outfield minimums: HR-2, HR-5, HR-6
+  - no 3 straight outfield innings: HR-3
+  - round-robin bench, with no consecutive bench innings: HR-4, HR-11
+  - minimum defensive outs from the team setting: HR-8
+  - pitching limits per game: HR-1, HR-9, HR-10
+- **Soft rules** (notices): SR-1 position variety, SR-2 infield/outfield balance, and SR-3 season-to-date tie-breaking.
+- **Batting order** (BO-1…BO-6): continuous, fixed order that carries over between games, skipping absent players.
+- **Generator:** randomized, and must never trade away hard-rule compliance for variety. When the hard rules can't all be met, it returns its best lineup and lists the unmet rules.
 
 ## Conventions
 
