@@ -1,0 +1,41 @@
+{
+  "name": "fairplay-wizard",
+  "version": "1.0.0",
+  "description": "Fair playing-time rotations for youth baseball and softball coaches",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "node scripts/copy-vendor.mjs && npm run build:css",
+    "build:css": "tailwindcss -i ./src/styles/input.css -o ./public/css/output.css --minify",
+    "watch:css": "tailwindcss -i ./src/styles/input.css -o ./public/css/output.css --watch",
+    "test": "vitest",
+    "typecheck": "tsc",
+    "cf-typegen": "wrangler types",
+    "db:migrate:local": "wrangler d1 migrations apply fairplay --local",
+    "db:migrate:remote": "wrangler d1 migrations apply fairplay --remote",
+    "deploy": "wrangler deploy"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jeremywall/fairplay-wizard.git"
+  },
+  "license": "MIT",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/jeremywall/fairplay-wizard/issues"
+  },
+  "homepage": "https://github.com/jeremywall/fairplay-wizard#readme",
+  "dependencies": {
+    "better-auth": "^1.7.6",
+    "hono": "^4.13.9",
+    "htmx.org": "^2.0.11"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@tailwindcss/cli": "^4.3.3",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.142.0"
+  },
+  "private": true
+}

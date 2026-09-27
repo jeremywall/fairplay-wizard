@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "fairplay-wizard",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-20",
+  // Better Auth relies on Node APIs such as AsyncLocalStorage.
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/app/*", "/auth/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "fairplay",
+      // Replace with the id printed by `npx wrangler d1 create fairplay` before deploying.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "build": {
+    "command": "npm run build",
+    "watch_dir": ["src", "public/index.html"]
+  },
+  "observability": { "enabled": true }
+}
