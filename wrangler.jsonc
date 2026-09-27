@@ -14,8 +14,7 @@
     {
       "binding": "DB",
       "database_name": "fairplay",
-      // Replace with the id printed by `npx wrangler d1 create fairplay` before deploying.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "8a287295-e8fd-49df-b37b-7bbc596f8348",
       "migrations_dir": "migrations"
     }
   ],
@@ -23,5 +22,7 @@
     "command": "npm run build",
     "watch_dir": ["src", "public/index.html"]
   },
+  // Local dev overrides this with BETTER_AUTH_URL from .dev.vars.
+  "vars": { "BETTER_AUTH_URL": "https://fairplay-wizard.jeremywall.workers.dev" },
   "observability": { "enabled": true }
 }

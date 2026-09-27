@@ -71,14 +71,14 @@ npm run watch:css                     # Rebuild CSS on change
 npx wrangler d1 migrations create fairplay <name>   # New SQL migration
 npm run db:migrate:remote                           # Apply migrations to production D1
 npm run deploy                                      # Deploy the Worker
-npx wrangler secret put BETTER_AUTH_SECRET          # Set production secrets (also BETTER_AUTH_URL)
+npx wrangler secret put BETTER_AUTH_SECRET          # Rotate the production auth secret (signs everyone out)
 ```
 
 - Tailwind scans `src` as well as `public/index.html` (see `src/styles/input.css`), because most markup, including class names, is rendered by the Worker.
 - Better Auth's tables are in `migrations/0001_better_auth.sql`. If Better Auth options or plugins change its schema, run `node scripts/generate-auth-schema.mjs` and write the difference as a new migration.
 - **Testing notes:** tests call the Worker through `exports.default.fetch` from `cloudflare:workers`, and migrations are applied by `test/apply-migrations.ts`. D1 storage is **not** reset between tests in a file, so create unique ids and emails in each test.
 - **Compatibility date:** `@cloudflare/vitest-pool-workers` bundles its own, older `workerd`. Don't set `compatibility_date` in `wrangler.jsonc` newer than that runtime supports, or the tests hang at startup.
-- **Before the first deploy:** run `npx wrangler d1 create fairplay` and put the printed id into `database_id` in `wrangler.jsonc` (it's currently a placeholder).
+- **Production:** https://fairplay-wizard.jeremywall.workers.dev, with D1 database `fairplay`. `BETTER_AUTH_URL` is a var in `wrangler.jsonc` (overridden locally by `.dev.vars`), and `BETTER_AUTH_SECRET` is a Worker secret. Apply new migrations with `npm run db:migrate:remote` **before** deploying code that depends on them.
 
 ## Domain rules
 
