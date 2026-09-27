@@ -3,13 +3,12 @@ import type { Player } from "../db/players";
 import type { TeamDetails } from "../db/teams";
 import type { FairnessReport } from "../domain/fairness";
 import { type GameOptions, type Lineup, MAX_INNINGS, MIN_INNINGS, playerTotals, slotsOf } from "../domain/lineup";
-import { categoryOf, MIN_PLAYERS, type Slot } from "../domain/positions";
+import { categoryOf, fieldedPositions, MIN_PLAYERS, type Slot } from "../domain/positions";
 import type { Violation } from "../domain/rules";
 
 export interface SetupState {
   selected: Set<string>;
   innings: number;
-  alignmentMode: GameOptions["alignmentMode"];
   pitcherInningLimit: GameOptions["pitcherInningLimit"];
   error?: string;
 }
@@ -55,12 +54,7 @@ export function setupForm(team: TeamDetails, roster: Player[], state: SetupState
         </select>
       </label>
 
-      <fieldset class="space-y-2">
-        <legend class="font-semibold">Positions</legend>
-        <p class="text-sm text-slate-600">Only matters with 10 or more players. Fewer players always use the standard alignment for that number.</p>
-        <label class="${radioLabel}"><input class="size-5 accent-emerald-700" type="radio" name="alignmentMode" value="9" ${state.alignmentMode === 9 ? "checked" : ""}> 9 positions (3 outfielders)</label>
-        <label class="${radioLabel}"><input class="size-5 accent-emerald-700" type="radio" name="alignmentMode" value="10" ${state.alignmentMode === 10 ? "checked" : ""}> 10 positions (4 outfielders)</label>
-      </fieldset>
+      <p class="text-sm text-slate-600">With 10 or more players this team plays a <span class="font-medium text-slate-900">${team.alignmentMode}-player defense</span>. Change it in the team's game settings.</p>
 
       <fieldset class="space-y-2">
         <legend class="font-semibold">Pitcher limit</legend>
@@ -104,13 +98,12 @@ export function lineupResult(teamId: string, lineup: Lineup, violations: Violati
     <div>
       ${backToTeam(teamId)}
       <h2 class="mt-2 text-2xl font-semibold">Lineup</h2>
-      <p class="text-sm text-slate-600">${players.length} players · ${options.innings} innings · pitchers up to ${options.pitcherInningLimit} inning${options.pitcherInningLimit === 1 ? "" : "s"}</p>
+      <p class="text-sm text-slate-600">${players.length} players · ${fieldedPositions(players.length, options.alignmentMode).length} fielders · ${options.innings} innings · pitchers up to ${options.pitcherInningLimit} inning${options.pitcherInningLimit === 1 ? "" : "s"}</p>
     </div>
 
     <form class="flex flex-wrap gap-2" hx-post="/app/teams/${teamId}/lineup" hx-target="#lineup-panel" hx-swap="outerHTML">
       ${players.map((p) => html`<input type="hidden" name="player" value="${p.id}">`)}
       <input type="hidden" name="innings" value="${options.innings}">
-      <input type="hidden" name="alignmentMode" value="${options.alignmentMode}">
       <input type="hidden" name="pitcherInningLimit" value="${options.pitcherInningLimit}">
       <button class="${primaryButton}" type="submit">Regenerate</button>
       <button class="${secondaryButton}" type="button" hx-post="/app/teams/${teamId}/lineup/setup" hx-target="#lineup-panel" hx-swap="outerHTML">Change players or options</button>

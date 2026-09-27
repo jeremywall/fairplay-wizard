@@ -1,3 +1,5 @@
+import type { AlignmentMode } from "../domain/positions";
+
 // Team data access. Every query is scoped to teams the calling coach belongs
 // to, because D1 has no row-level security.
 
@@ -57,13 +59,16 @@ export interface TeamDetails {
   name: string;
   inningsPerGame: number;
   minDefensiveOuts: number;
+  /** Defense used when 10 or more players are present. */
+  alignmentMode: AlignmentMode;
 }
 
 /** Returns team details. Call requireTeamAccess first. */
 export async function getTeam(db: D1Database, teamId: string): Promise<TeamDetails> {
   const team = await db
     .prepare(
-      `SELECT id, name, innings_per_game AS inningsPerGame, min_defensive_outs AS minDefensiveOuts
+      `SELECT id, name, innings_per_game AS inningsPerGame, min_defensive_outs AS minDefensiveOuts,
+              alignment_mode AS alignmentMode
          FROM team WHERE id = ?`,
     )
     .bind(teamId)
@@ -76,10 +81,10 @@ export async function getTeam(db: D1Database, teamId: string): Promise<TeamDetai
 export async function updateTeamSettings(
   db: D1Database,
   teamId: string,
-  settings: { inningsPerGame: number; minDefensiveOuts: number },
+  settings: { inningsPerGame: number; minDefensiveOuts: number; alignmentMode: AlignmentMode },
 ): Promise<void> {
   await db
-    .prepare(`UPDATE team SET innings_per_game = ?, min_defensive_outs = ? WHERE id = ?`)
-    .bind(settings.inningsPerGame, settings.minDefensiveOuts, teamId)
+    .prepare(`UPDATE team SET innings_per_game = ?, min_defensive_outs = ?, alignment_mode = ? WHERE id = ?`)
+    .bind(settings.inningsPerGame, settings.minDefensiveOuts, settings.alignmentMode, teamId)
     .run();
 }

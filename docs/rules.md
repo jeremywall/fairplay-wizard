@@ -44,10 +44,11 @@ Positions are defined in one config module. Everything else (rules, generator, v
 | 7 | P, 1B, 2B, 3B, SS, **LC, RC** (no catcher) | 2 |
 | 8 | P, C, 1B, 2B, 3B, SS, **LC, RC** | 2 |
 | 9 | P, C, 1B, 2B, 3B, SS, LF, CF, RF | 3 |
-| 10+ (10-position mode) | P, C, 1B, 2B, 3B, SS, LF, LC, RC, RF | 4 |
+| 10+ (team plays a 9-player defense) | P, C, 1B, 2B, 3B, SS, LF, CF, RF | 3 |
+| 10+ (team plays a 10-player defense) | P, C, 1B, 2B, 3B, SS, LF, LC, RC, RF | 4 |
 
 - A two-outfielder alignment always uses **LC/RC**, never LF/CF.
-- **Alignment mode** (9 or 10 positions) is a per-game option. It defaults from attendance: 9-position for 9 or fewer present, and 10-position for 10 or more. With 10 or more present, the coach can choose 9-position mode (3 outfielders, more bench time). With 9 or fewer present, the attendance table above always applies, whatever mode is chosen.
+- **Alignment mode** (a 9-player or 10-player defense) is a **team setting**, chosen once in the team's game settings (default: 10). It only applies when 10 or more players are present. A 9-player defense means 3 outfielders and more bench time. With 9 or fewer present, the attendance table above always applies.
 - With 7 present, the catcher isn't fielded, so "infield" means P, 1B, 2B, 3B and SS.
 
 ## 3. Game options
@@ -56,7 +57,7 @@ Positions are defined in one config module. Everything else (rules, generator, v
 |---|---|---|
 | Attendance | Per game | Checklist of the active roster, with "All present" toggle. Defaults to nobody checked. At least 7 are required. |
 | Innings | Per game, defaulting to the team's **innings per game** setting | 3–9. |
-| Alignment mode | Per game | 9 or 10 positions, auto-selected from attendance (§2). |
+| Alignment mode | Team setting (default 10) | 9-player or 10-player defense, used with 10 or more present (§2). |
 | Pitcher inning limit | Per game | 1 or 2 innings per pitcher (HR-9). |
 | Minimum defensive outs | Team setting (default 6) | HR-8 threshold. The generator works in whole innings, so the minimum in innings is `ceil(minDefensiveOuts / 3)`. |
 

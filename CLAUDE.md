@@ -94,7 +94,7 @@ npx wrangler secret put BETTER_AUTH_SECRET          # Rotate the production auth
 **Out of scope for now:** pitch counts and rest days (pitching rules are per-game innings only), live in-game substitution tracking, and parent or league-admin access.
 
 ### Rules at a glance (details and exact wording in `docs/rules.md`)
-- **Positions** depend on attendance: at least 7 players are needed, with 2 outfielders (LC/RC) at 7–8 present, 3 at 9, and 4 at 10+ in 10-position mode. **Pitcher and catcher count as infield.**
+- **Positions** depend on attendance: at least 7 players are needed, with 2 outfielders (LC/RC) at 7–8 present, 3 at 9, and 3 or 4 at 10+ depending on the team's 9- or 10-player defense setting. **Pitcher and catcher count as infield.**
 - **Hard rules** (errors):
   - infield/outfield minimums: HR-2, HR-5, HR-6
   - no 3 straight outfield innings: HR-3

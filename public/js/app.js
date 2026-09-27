@@ -1,13 +1,11 @@
-// Small UI glue for the lineup setup form: live attendance count, the
-// "All present" toggle, and picking the alignment mode from attendance.
+// Small UI glue for the lineup setup form: live attendance count and the
+// "All present" toggle.
 // The server applies the same rules, so the page still works without this.
 
 function updateSetup(form) {
   const count = form.querySelectorAll("[data-attendance]:checked").length;
   const counter = form.querySelector("[data-present-count]");
   if (counter) counter.textContent = String(count);
-  const mode = form.querySelector(`[name="alignmentMode"][value="${count >= 10 ? 10 : 9}"]`);
-  if (mode) mode.checked = true;
   const generate = form.querySelector("[data-generate]");
   if (generate) generate.disabled = count < 7;
 }

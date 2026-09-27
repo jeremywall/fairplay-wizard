@@ -27,8 +27,6 @@ async function readSetup(c: Context<AppEnv>, team: TeamDetails, roster: Player[]
   return {
     selected,
     innings: Number.isInteger(innings) && innings >= MIN_INNINGS && innings <= MAX_INNINGS ? innings : team.inningsPerGame,
-    // 10 positions only mean something with 10 or more players (docs/rules.md §2).
-    alignmentMode: body.alignmentMode === "10" && selected.size >= 10 ? 10 : 9,
     pitcherInningLimit: body.pitcherInningLimit === "1" ? 1 : 2,
   };
 }
@@ -36,7 +34,7 @@ async function readSetup(c: Context<AppEnv>, team: TeamDetails, roster: Player[]
 lineupRoutes.get("/", async (c) => {
   const { team, roster } = await loadTeam(c);
   return c.html(
-    setupForm(team, roster, { selected: new Set(), innings: team.inningsPerGame, alignmentMode: 9, pitcherInningLimit: 2 }),
+    setupForm(team, roster, { selected: new Set(), innings: team.inningsPerGame, pitcherInningLimit: 2 }),
   );
 });
 
@@ -60,7 +58,7 @@ lineupRoutes.post("/", async (c) => {
   const players = roster.filter((p) => state.selected.has(p.id)).map(({ id, name }) => ({ id, name }));
   const options: GameOptions = {
     innings: state.innings,
-    alignmentMode: state.alignmentMode,
+    alignmentMode: team.alignmentMode,
     pitcherInningLimit: state.pitcherInningLimit,
     minDefensiveOuts: team.minDefensiveOuts,
   };

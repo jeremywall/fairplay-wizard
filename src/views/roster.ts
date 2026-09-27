@@ -33,6 +33,16 @@ export function teamSettings(team: TeamDetails, opts: { error?: string; saved?: 
       <label class="text-sm font-medium">Minimum defensive outs per player
         <input class="${inputClass} mt-1 block w-24" type="number" name="minDefensiveOuts" min="0" max="27" value="${team.minDefensiveOuts}" required>
       </label>
+    </div>
+    <fieldset class="space-y-2">
+      <legend class="text-sm font-medium">Defense with 10 or more players</legend>
+      <p class="text-sm text-slate-600">With 9 or fewer players, the standard alignment for that number is always used.</p>
+      <div class="flex flex-wrap gap-2">
+        <label class="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 px-3 py-2"><input class="size-5 accent-emerald-700" type="radio" name="alignmentMode" value="9" ${team.alignmentMode === 9 ? "checked" : ""}> 9 players (3 outfielders)</label>
+        <label class="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 px-3 py-2"><input class="size-5 accent-emerald-700" type="radio" name="alignmentMode" value="10" ${team.alignmentMode === 10 ? "checked" : ""}> 10 players (4 outfielders)</label>
+      </div>
+    </fieldset>
+    <div class="flex items-center gap-3">
       <button class="rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800" type="submit">Save</button>
       ${opts.saved ? html`<span class="text-sm text-emerald-700">Saved</span>` : ""}
     </div>

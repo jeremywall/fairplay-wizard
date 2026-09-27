@@ -51,6 +51,7 @@ appRoutes.post("/teams/:teamId/settings", async (c) => {
   const form = await c.req.parseBody();
   const inningsPerGame = Number(form.inningsPerGame);
   const minDefensiveOuts = Number(form.minDefensiveOuts);
+  const alignmentMode = Number(form.alignmentMode);
   const team = await getTeam(c.env.DB, teamId);
 
   let error: string | undefined;
@@ -58,11 +59,14 @@ appRoutes.post("/teams/:teamId/settings", async (c) => {
     error = "Innings per game must be a whole number from 3 to 9.";
   } else if (!Number.isInteger(minDefensiveOuts) || minDefensiveOuts < 0 || minDefensiveOuts > inningsPerGame * 3) {
     error = `Minimum defensive outs must be a whole number from 0 to ${inningsPerGame * 3}.`;
+  } else if (alignmentMode !== 9 && alignmentMode !== 10) {
+    error = "Choose a 9-player or 10-player defense.";
   }
   if (error) return c.html(teamSettings({ ...team, inningsPerGame, minDefensiveOuts }, { error }));
 
-  await updateTeamSettings(c.env.DB, teamId, { inningsPerGame, minDefensiveOuts });
-  return c.html(teamSettings({ ...team, inningsPerGame, minDefensiveOuts }, { saved: true }));
+  const settings = { inningsPerGame, minDefensiveOuts, alignmentMode: alignmentMode as 9 | 10 };
+  await updateTeamSettings(c.env.DB, teamId, settings);
+  return c.html(teamSettings({ ...team, ...settings }, { saved: true }));
 });
 
 appRoutes.post("/teams/:teamId/players", async (c) => {

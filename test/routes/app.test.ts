@@ -87,7 +87,7 @@ describe("lineup routes", () => {
   }
 
   function generate(teamId: string, cookie: string, playerIds: string[], extra: Record<string, string> = {}) {
-    const body = new URLSearchParams({ innings: "6", alignmentMode: "9", pitcherInningLimit: "2", ...extra });
+    const body = new URLSearchParams({ innings: "6", pitcherInningLimit: "2", ...extra });
     for (const id of playerIds) body.append("player", id);
     return exports.default.fetch(`${ORIGIN}/app/teams/${teamId}/lineup`, {
       method: "POST",
@@ -112,12 +112,24 @@ describe("lineup routes", () => {
 
   it("generates a lineup that meets every hard rule for a typical game", async () => {
     const { cookie, teamId, playerIds } = await teamWithPlayers(11);
-    const page = await (await generate(teamId, cookie, playerIds, { alignmentMode: "10" })).text();
+    const page = await (await generate(teamId, cookie, playerIds)).text();
     expect(page).not.toMatch(/HR-\d+<\/span>/);
     expect(page).not.toContain("Some rules can't all be met");
     expect(page.match(/<tr>/g)?.length).toBeGreaterThanOrEqual(22); // grid + summary rows
     expect(page).toContain(">LC<");
     expect(page).toContain("Regenerate");
+  });
+
+  it("uses the team's defense setting with 10 or more players", async () => {
+    const { cookie, teamId, playerIds } = await teamWithPlayers(11);
+    const setup = await (await exports.default.fetch(`${ORIGIN}/app/teams/${teamId}/lineup`, { headers: { Cookie: cookie } })).text();
+    expect(setup).toContain("10-player defense");
+
+    await post(`/app/teams/${teamId}/settings`, { inningsPerGame: "6", minDefensiveOuts: "6", alignmentMode: "9" }, { Cookie: cookie });
+    const page = await (await generate(teamId, cookie, playerIds, { alignmentMode: "10" })).text();
+    expect(page).toContain("11 players · 9 fielders");
+    expect(page).toContain(">CF<");
+    expect(page).not.toContain(">LC<");
   });
 
   it("reports rules that can't be met instead of failing", async () => {
@@ -173,12 +185,14 @@ describe("roster routes", () => {
     const teamId = await createTeam(cookie, "Tigers");
     const settings = `/app/teams/${teamId}/settings`;
 
-    const ok = await (await post(settings, { inningsPerGame: "4", minDefensiveOuts: "6" }, { Cookie: cookie })).text();
+    const ok = await (await post(settings, { inningsPerGame: "4", minDefensiveOuts: "6", alignmentMode: "10" }, { Cookie: cookie })).text();
     expect(ok).toContain("Saved");
-    const bad = await (await post(settings, { inningsPerGame: "4", minDefensiveOuts: "13" }, { Cookie: cookie })).text();
+    const bad = await (await post(settings, { inningsPerGame: "4", minDefensiveOuts: "13", alignmentMode: "10" }, { Cookie: cookie })).text();
     expect(bad).toContain("from 0 to 12");
-    const tooShort = await (await post(settings, { inningsPerGame: "2", minDefensiveOuts: "3" }, { Cookie: cookie })).text();
+    const tooShort = await (await post(settings, { inningsPerGame: "2", minDefensiveOuts: "3", alignmentMode: "10" }, { Cookie: cookie })).text();
     expect(tooShort).toContain("from 3 to 9");
+    const noMode = await (await post(settings, { inningsPerGame: "6", minDefensiveOuts: "6", alignmentMode: "11" }, { Cookie: cookie })).text();
+    expect(noMode).toContain("Choose a 9-player or 10-player defense.");
   });
 
   it("hides a team from coaches who don't belong to it", async () => {
