@@ -3,10 +3,12 @@ import { createMiddleware } from "hono/factory";
 import { addPlayer, listPlayers, movePlayer, removePlayer } from "../db/players";
 import { createTeam, getTeam, listTeamsForCoach, requireTeamAccess, updateTeamSettings } from "../db/teams";
 import { requireUser } from "../middleware/session";
+import { gameRoutes } from "./games";
 import { lineupRoutes } from "./lineup";
+import { renderTeamPage } from "./team-page";
 import type { AppEnv } from "../types";
 import { loginForm } from "../views/auth";
-import { roster, teamPage, teamSettings } from "../views/roster";
+import { roster, teamSettings } from "../views/roster";
 import { teamItem, teamsPage } from "../views/teams";
 
 export const appRoutes = new Hono<AppEnv>();
@@ -31,6 +33,7 @@ appRoutes.use("/teams/:teamId", requireTeam);
 appRoutes.use("/teams/:teamId/*", requireTeam);
 
 appRoutes.route("/teams/:teamId/lineup", lineupRoutes);
+appRoutes.route("/teams/:teamId/games", gameRoutes);
 
 appRoutes.post("/teams", async (c) => {
   const user = c.get("user")!;
@@ -41,9 +44,7 @@ appRoutes.post("/teams", async (c) => {
 });
 
 appRoutes.get("/teams/:teamId", async (c) => {
-  const teamId = c.req.param("teamId");
-  const [team, players] = await Promise.all([getTeam(c.env.DB, teamId), listPlayers(c.env.DB, teamId)]);
-  return c.html(teamPage(team, players));
+  return c.html(await renderTeamPage(c.env.DB, c.req.param("teamId")));
 });
 
 appRoutes.post("/teams/:teamId/settings", async (c) => {

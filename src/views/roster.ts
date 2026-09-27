@@ -1,6 +1,9 @@
 import { html } from "hono/html";
+import type { GameSummary } from "../db/games";
 import type { Player } from "../db/players";
 import type { TeamDetails } from "../db/teams";
+import type { SeasonTotals } from "../domain/season";
+import { gamesList, seasonStats } from "./games";
 
 const inputClass = "rounded-md border border-slate-300 px-3 py-2";
 const iconButton = "rounded px-2 py-1 text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent";
@@ -9,13 +12,15 @@ function alert(message?: string) {
   return message ? html`<p class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">${message}</p>` : "";
 }
 
-export function teamPage(team: TeamDetails, players: Player[]) {
+export function teamPage(team: TeamDetails, players: Player[], games: GameSummary[], totals: Map<string, SeasonTotals>) {
   return html`<section class="mx-auto max-w-xl space-y-8">
     <div>
       <button class="text-sm text-slate-600 hover:underline" hx-get="/app/home" hx-target="#main" hx-swap="innerHTML">← All teams</button>
       <h2 class="mt-2 text-2xl font-semibold">${team.name}</h2>
     </div>
     <button class="min-h-11 w-full rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800" hx-get="/app/teams/${team.id}/lineup" hx-target="#main" hx-swap="innerHTML">Plan a game</button>
+    ${gamesList(team.id, games)}
+    ${seasonStats(players, totals)}
     ${teamSettings(team)}
     ${roster(team.id, players)}
   </section>`;

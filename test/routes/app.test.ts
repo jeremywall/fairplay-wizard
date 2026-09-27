@@ -153,6 +153,105 @@ describe("lineup routes", () => {
   });
 });
 
+describe("game routes", () => {
+  const decode = (s: string) => s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
+  const rowNames = (page: string) => [...page.matchAll(/scope="row">([^<]+)<\/th>/g)].map((m) => m[1]);
+
+  async function setup() {
+    const cookie = await signUp("Pat");
+    const teamId = await createTeam(cookie, "Tigers");
+    let html = "";
+    for (const name of ["Ava", "Ben", "Cal", "Dee", "Eli", "Fay", "Gus"]) {
+      html = await (await post(`/app/teams/${teamId}/players`, { name }, { Cookie: cookie })).text();
+    }
+    const playerIds = [...html.matchAll(/players\/([^/"]+)\/move\?direction=up/g)].map((m) => m[1]);
+    return { cookie, teamId, playerIds };
+  }
+
+  async function generate(cookie: string, teamId: string, playerIds: string[]) {
+    const body = new URLSearchParams({ innings: "6", pitcherInningLimit: "2" });
+    for (const id of playerIds) body.append("player", id);
+    const res = await exports.default.fetch(`${ORIGIN}/app/teams/${teamId}/lineup`, {
+      method: "POST",
+      headers: { Origin: ORIGIN, "HX-Request": "true", Cookie: cookie },
+      body,
+    });
+    return res.text();
+  }
+
+  async function saveFrom(cookie: string, teamId: string, lineupPage: string, extra: Record<string, string> = {}) {
+    const lineup = decode(lineupPage.match(/name="lineup" value="([^"]+)"/)![1]);
+    return post(
+      `/app/teams/${teamId}/games`,
+      { lineup, innings: "6", pitcherInningLimit: "2", date: "2026-10-04", opponent: "Cubs", ...extra },
+      { Cookie: cookie },
+    );
+  }
+
+  it("saves, finalizes, and carries the batting order into the next game", async () => {
+    const { cookie, teamId, playerIds } = await setup();
+    const first = await generate(cookie, teamId, playerIds);
+    const firstOrder = rowNames(first).slice(0, 7);
+    expect(firstOrder).toEqual(["Ava", "Ben", "Cal", "Dee", "Eli", "Fay", "Gus"]);
+
+    const saved = await (await saveFrom(cookie, teamId, first)).text();
+    expect(saved).toContain("vs Cubs");
+    expect(saved).toContain("Finalize game");
+    const gameId = saved.match(/games\/([^/"]+)\/finalize/)![1];
+
+    // 9 plate appearances with 7 batters: Ben (2nd) batted last.
+    const final = await (await post(`/app/teams/${teamId}/games/${gameId}/finalize`, { plateAppearances: "9" }, { Cookie: cookie })).text();
+    expect(final).toContain("Final");
+    expect(final).toContain("Ben</span> batted last");
+
+    const next = await generate(cookie, teamId, playerIds);
+    expect(rowNames(next).slice(0, 7)).toEqual(["Cal", "Dee", "Eli", "Fay", "Gus", "Ava", "Ben"]);
+
+    const teamPage = await (await exports.default.fetch(`${ORIGIN}/app/teams/${teamId}`, { headers: { Cookie: cookie } })).text();
+    expect(teamPage).toContain("Season stats");
+    expect(teamPage).toMatch(/vs Cubs[\s\S]*Final/);
+    // Ava led off and got 2 of the 9 plate appearances; 1 game, 6 innings split between field and bench.
+    expect(teamPage).toMatch(/scope="row">Ava<\/th>\s*<td[^>]*>1<\/td>(\s*<td[^>]*>\d+<\/td>){7}\s*<td[^>]*>2<\/td>/);
+  });
+
+  it("reopens and deletes games", async () => {
+    const { cookie, teamId, playerIds } = await setup();
+    const saved = await (await saveFrom(cookie, teamId, await generate(cookie, teamId, playerIds))).text();
+    const gameId = saved.match(/games\/([^/"]+)\/finalize/)![1];
+    await post(`/app/teams/${teamId}/games/${gameId}/finalize`, { plateAppearances: "9" }, { Cookie: cookie });
+
+    const reopened = await (await post(`/app/teams/${teamId}/games/${gameId}/reopen`, {}, { Cookie: cookie })).text();
+    expect(reopened).toContain("Finalize game");
+    expect(rowNames(await generate(cookie, teamId, playerIds))[0]).toBe("Ava");
+
+    const res = await request("DELETE", `/app/teams/${teamId}/games/${gameId}`, { headers: { Cookie: cookie } });
+    expect(await res.text()).toContain("No saved games yet.");
+  });
+
+  it("rejects invalid finalize input and tampered lineups", async () => {
+    const { cookie, teamId, playerIds } = await setup();
+    const page = await generate(cookie, teamId, playerIds);
+    const saved = await (await saveFrom(cookie, teamId, page)).text();
+    const gameId = saved.match(/games\/([^/"]+)\/finalize/)![1];
+    const bad = await (await post(`/app/teams/${teamId}/games/${gameId}/finalize`, { plateAppearances: "-1" }, { Cookie: cookie })).text();
+    expect(bad).toContain("Plate appearances must be a whole number");
+
+    const other = await setup();
+    const tampered = JSON.stringify({ players: [...playerIds.slice(0, 6), other.playerIds[0]], innings: [] });
+    const res = await post(`/app/teams/${teamId}/games`, { lineup: tampered, innings: "6", date: "2026-10-04" }, { Cookie: cookie });
+    expect(res.status).toBe(422);
+  });
+
+  it("hides games from coaches who don't belong to the team", async () => {
+    const { cookie, teamId, playerIds } = await setup();
+    const saved = await (await saveFrom(cookie, teamId, await generate(cookie, teamId, playerIds))).text();
+    const gameId = saved.match(/games\/([^/"]+)\/finalize/)![1];
+    const stranger = await signUp("Sam");
+    const res = await exports.default.fetch(`${ORIGIN}/app/teams/${teamId}/games/${gameId}`, { headers: { Cookie: stranger } });
+    expect(res.status).toBe(404);
+  });
+});
+
 describe("roster routes", () => {
   it("adds, reorders and removes players", async () => {
     const cookie = await signUp("Pat");

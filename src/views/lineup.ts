@@ -14,11 +14,11 @@ export interface SetupState {
 }
 
 const radioLabel = "flex min-h-11 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2";
-const primaryButton =
+export const primaryButton =
   "min-h-11 rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50";
-const secondaryButton = "min-h-11 rounded-md border border-slate-300 bg-white px-4 py-2 font-medium hover:bg-slate-50";
+export const secondaryButton = "min-h-11 rounded-md border border-slate-300 bg-white px-4 py-2 font-medium hover:bg-slate-50";
 
-function backToTeam(teamId: string) {
+export function backToTeam(teamId: string) {
   return html`<button class="text-sm text-slate-600 hover:underline" hx-get="/app/teams/${teamId}" hx-target="#main" hx-swap="innerHTML">← Back to team</button>`;
 }
 
@@ -87,93 +87,136 @@ const fairnessClass: Record<FairnessReport["label"], string> = {
   Uneven: "bg-red-100 text-red-900",
 };
 
-export function lineupResult(teamId: string, lineup: Lineup, violations: Violation[], report: FairnessReport) {
+/** Summary line: players, fielders, innings and pitcher limit. */
+export function lineupDescription(lineup: Lineup) {
   const { options, players } = lineup;
+  return `${players.length} players · ${fieldedPositions(players.length, options.alignmentMode).length} fielders · ${options.innings} innings · pitchers up to ${options.pitcherInningLimit} inning${options.pitcherInningLimit === 1 ? "" : "s"}`;
+}
+
+/** Position by inning, one row per player in batting order. */
+export function lineupGrid(lineup: Lineup) {
   const inningNumbers = lineup.innings.map((_, i) => i + 1);
+  return html`<div class="overflow-x-auto rounded-md border border-slate-200 bg-white">
+    <table class="min-w-full text-sm">
+      <caption class="px-3 py-2 text-left font-semibold">Batting order and positions</caption>
+      <thead class="bg-slate-50 text-slate-600">
+        <tr>
+          <th class="px-2 py-2 text-right font-medium" scope="col"><span class="sr-only">Batting order</span>#</th>
+          <th class="sticky left-0 bg-slate-50 px-3 py-2 text-left font-medium" scope="col">Player</th>
+          ${inningNumbers.map((n) => html`<th class="px-2 py-2 text-center font-medium" scope="col">${n}</th>`)}
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        ${lineup.players.map(
+          (player, p) => html`<tr>
+            <td class="px-2 py-2 text-right tabular-nums text-slate-500">${p + 1}</td>
+            <th class="sticky left-0 whitespace-nowrap bg-white px-3 py-2 text-left font-medium" scope="row">${player.name}</th>
+            ${lineup.innings.map((inning) => slotCell(inning[p]))}
+          </tr>`,
+        )}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+/** Fairness readout and rule check. */
+export function ruleCheckPanel(violations: Violation[], report: FairnessReport) {
   const errors = violations.filter((v) => v.severity === "error");
   const notices = violations.filter((v) => v.severity === "notice");
-  const totals = players.map((_, p) => playerTotals(slotsOf(lineup, p)));
+  return html`<div class="space-y-3 rounded-lg bg-white p-4 shadow-sm">
+    <div class="flex flex-wrap items-center gap-3">
+      <h3 class="font-semibold">Fairness</h3>
+      <span class="rounded-full px-3 py-1 text-sm font-medium ${fairnessClass[report.label]}">${report.label}</span>
+      <span class="text-sm text-slate-600">bench ±${report.spreads.bench}, infield ±${report.spreads.infield}, outfield ±${report.spreads.outfield}</span>
+    </div>
+    <h3 class="font-semibold">Rule check</h3>
+    ${violations.length === 0
+      ? html`<p class="text-sm text-emerald-800">Every rule is met.</p>`
+      : html`<ul class="space-y-1 text-sm">
+          ${errors.map((v) => html`<li class="rounded-md bg-red-50 px-3 py-2 text-red-800"><span class="font-semibold">${v.ruleId}</span> ${v.message}</li>`)}
+          ${notices.map((v) => html`<li class="rounded-md bg-amber-50 px-3 py-2 text-amber-900"><span class="font-semibold">${v.ruleId}</span> ${v.message}</li>`)}
+        </ul>`}
+    ${errors.length > 0
+      ? html`<p class="text-sm text-slate-600">Some rules can't all be met with this attendance and these options. Try Regenerate, or change the options.</p>`
+      : ""}
+  </div>`;
+}
+
+/** Innings per player at P, C, IF (1B–SS), OF and bench. */
+export function summaryTable(lineup: Lineup) {
+  return html`<div class="overflow-x-auto rounded-md border border-slate-200 bg-white">
+    <table class="min-w-full text-sm">
+      <caption class="px-3 py-2 text-left font-semibold">Innings by player</caption>
+      <thead class="bg-slate-50 text-slate-600">
+        <tr>
+          <th class="sticky left-0 bg-slate-50 px-3 py-2 text-left font-medium" scope="col">Player</th>
+          <th class="px-2 py-2 text-center font-medium" scope="col">P</th>
+          <th class="px-2 py-2 text-center font-medium" scope="col">C</th>
+          <th class="px-2 py-2 text-center font-medium" scope="col" title="1B, 2B, 3B, SS">IF</th>
+          <th class="px-2 py-2 text-center font-medium" scope="col">OF</th>
+          <th class="px-2 py-2 text-center font-medium" scope="col">Bench</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        ${lineup.players.map((player, p) => {
+          const t = playerTotals(slotsOf(lineup, p));
+          return html`<tr>
+            <th class="sticky left-0 whitespace-nowrap bg-white px-3 py-2 text-left font-medium" scope="row">${player.name}</th>
+            <td class="px-2 py-2 text-center tabular-nums">${t.pitcher}</td>
+            <td class="px-2 py-2 text-center tabular-nums">${t.catcher}</td>
+            <td class="px-2 py-2 text-center tabular-nums">${t.infield - t.pitcher - t.catcher}</td>
+            <td class="px-2 py-2 text-center tabular-nums">${t.outfield}</td>
+            <td class="px-2 py-2 text-center tabular-nums">${t.bench}</td>
+          </tr>`;
+        })}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+/**
+ * A freshly generated lineup, with Regenerate and Save. `lineup.players` is in
+ * batting order.
+ */
+export function lineupResult(teamId: string, lineup: Lineup, violations: Violation[], report: FairnessReport, today: string) {
+  const { options, players } = lineup;
+  const optionInputs = html`${players.map((p) => html`<input type="hidden" name="player" value="${p.id}">`)}
+    <input type="hidden" name="innings" value="${options.innings}">
+    <input type="hidden" name="pitcherInningLimit" value="${options.pitcherInningLimit}">`;
+  const saved = JSON.stringify({ players: players.map((p) => p.id), innings: lineup.innings });
 
   return html`<section class="space-y-6" id="lineup-panel">
     <div>
       ${backToTeam(teamId)}
       <h2 class="mt-2 text-2xl font-semibold">Lineup</h2>
-      <p class="text-sm text-slate-600">${players.length} players · ${fieldedPositions(players.length, options.alignmentMode).length} fielders · ${options.innings} innings · pitchers up to ${options.pitcherInningLimit} inning${options.pitcherInningLimit === 1 ? "" : "s"}</p>
+      <p class="text-sm text-slate-600">${lineupDescription(lineup)}</p>
     </div>
 
     <form class="flex flex-wrap gap-2" hx-post="/app/teams/${teamId}/lineup" hx-target="#lineup-panel" hx-swap="outerHTML">
-      ${players.map((p) => html`<input type="hidden" name="player" value="${p.id}">`)}
-      <input type="hidden" name="innings" value="${options.innings}">
-      <input type="hidden" name="pitcherInningLimit" value="${options.pitcherInningLimit}">
+      ${optionInputs}
       <button class="${primaryButton}" type="submit">Regenerate</button>
       <button class="${secondaryButton}" type="button" hx-post="/app/teams/${teamId}/lineup/setup" hx-target="#lineup-panel" hx-swap="outerHTML">Change players or options</button>
     </form>
 
-    <div class="overflow-x-auto rounded-md border border-slate-200 bg-white">
-      <table class="min-w-full text-sm">
-        <caption class="sr-only">Position by inning</caption>
-        <thead class="bg-slate-50 text-slate-600">
-          <tr>
-            <th class="sticky left-0 bg-slate-50 px-3 py-2 text-left font-medium" scope="col">Player</th>
-            ${inningNumbers.map((n) => html`<th class="px-2 py-2 text-center font-medium" scope="col">${n}</th>`)}
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-          ${players.map(
-            (player, p) => html`<tr>
-              <th class="sticky left-0 whitespace-nowrap bg-white px-3 py-2 text-left font-medium" scope="row">${player.name}</th>
-              ${lineup.innings.map((inning) => slotCell(inning[p]))}
-            </tr>`,
-          )}
-        </tbody>
-      </table>
-    </div>
+    ${lineupGrid(lineup)}
+    ${ruleCheckPanel(violations, report)}
+    ${summaryTable(lineup)}
 
-    <div class="space-y-3 rounded-lg bg-white p-4 shadow-sm">
-      <div class="flex flex-wrap items-center gap-3">
-        <h3 class="font-semibold">Fairness</h3>
-        <span class="rounded-full px-3 py-1 text-sm font-medium ${fairnessClass[report.label]}">${report.label}</span>
-        <span class="text-sm text-slate-600">bench ±${report.spreads.bench}, infield ±${report.spreads.infield}, outfield ±${report.spreads.outfield}</span>
+    <form class="space-y-3 rounded-lg bg-white p-4 shadow-sm" hx-post="/app/teams/${teamId}/games" hx-target="#main" hx-swap="innerHTML">
+      <h3 class="font-semibold">Save this lineup</h3>
+      <p class="text-sm text-slate-600">Saved games appear on the team page. After the game, finalize it so it counts toward season stats and the batting order carries over.</p>
+      <input type="hidden" name="lineup" value="${saved}">
+      <input type="hidden" name="innings" value="${options.innings}">
+      <input type="hidden" name="pitcherInningLimit" value="${options.pitcherInningLimit}">
+      <div class="flex flex-wrap items-end gap-3">
+        <label class="text-sm font-medium">Date
+          <input class="mt-1 block min-h-11 rounded-md border border-slate-300 px-3 py-2" type="date" name="date" value="${today}" required>
+        </label>
+        <label class="text-sm font-medium">Opponent (optional)
+          <input class="mt-1 block min-h-11 rounded-md border border-slate-300 px-3 py-2" type="text" name="opponent" maxlength="60">
+        </label>
+        <button class="${primaryButton}" type="submit">Save game</button>
       </div>
-      <h3 class="font-semibold">Rule check</h3>
-      ${violations.length === 0
-        ? html`<p class="text-sm text-emerald-800">Every rule is met.</p>`
-        : html`<ul class="space-y-1 text-sm">
-            ${errors.map((v) => html`<li class="rounded-md bg-red-50 px-3 py-2 text-red-800"><span class="font-semibold">${v.ruleId}</span> ${v.message}</li>`)}
-            ${notices.map((v) => html`<li class="rounded-md bg-amber-50 px-3 py-2 text-amber-900"><span class="font-semibold">${v.ruleId}</span> ${v.message}</li>`)}
-          </ul>`}
-      ${errors.length > 0
-        ? html`<p class="text-sm text-slate-600">Some rules can't all be met with this attendance and these options. Try Regenerate, or change the options.</p>`
-        : ""}
-    </div>
-
-    <div class="overflow-x-auto rounded-md border border-slate-200 bg-white">
-      <table class="min-w-full text-sm">
-        <caption class="px-3 py-2 text-left font-semibold">Innings by player</caption>
-        <thead class="bg-slate-50 text-slate-600">
-          <tr>
-            <th class="sticky left-0 bg-slate-50 px-3 py-2 text-left font-medium" scope="col">Player</th>
-            <th class="px-2 py-2 text-center font-medium" scope="col">P</th>
-            <th class="px-2 py-2 text-center font-medium" scope="col">C</th>
-            <th class="px-2 py-2 text-center font-medium" scope="col" title="1B, 2B, 3B, SS">IF</th>
-            <th class="px-2 py-2 text-center font-medium" scope="col">OF</th>
-            <th class="px-2 py-2 text-center font-medium" scope="col">Bench</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-          ${players.map((player, p) => {
-            const t = totals[p];
-            return html`<tr>
-              <th class="sticky left-0 whitespace-nowrap bg-white px-3 py-2 text-left font-medium" scope="row">${player.name}</th>
-              <td class="px-2 py-2 text-center tabular-nums">${t.pitcher}</td>
-              <td class="px-2 py-2 text-center tabular-nums">${t.catcher}</td>
-              <td class="px-2 py-2 text-center tabular-nums">${t.infield - t.pitcher - t.catcher}</td>
-              <td class="px-2 py-2 text-center tabular-nums">${t.outfield}</td>
-              <td class="px-2 py-2 text-center tabular-nums">${t.bench}</td>
-            </tr>`;
-          })}
-        </tbody>
-      </table>
-    </div>
+    </form>
   </section>`;
 }

@@ -12,7 +12,8 @@ The hard and soft rules come from the earlier planner project ([baseball-softbal
 4. **Adjust if needed:**
    - **Regenerate** produces a different random lineup with the same attendance and options. This is the fast path.
    - **Manual edits** let the coach change a player's position in a given inning (for example, by swapping two players). After every edit, the rule check re-runs and shows any violations. A hard-rule violation is shown prominently as an error, but it **does not block** saving. The coach has the final say.
-5. **Finalize** the game after it's played. Finalizing records plate appearances and advances the batting-order pointer (§5), and it makes the game count toward season stats.
+5. **Save** the lineup as a game (date and optional opponent). Saved games are listed on the team page.
+6. **Finalize** the game after it's played by entering the team's total plate appearances. Finalizing sets the batting-order pointer (§5) and makes the game count toward season stats (§9) and SR-3. A finalized game can be **reopened** (it stops counting until finalized again), and a planned game can be deleted.
 
 ## 2. Positions
 
@@ -93,7 +94,7 @@ Soft rules are preferences the generator optimizes for. Violations appear as inf
 |---|---|
 | SR-1 | A player shouldn't play the **same position twice** in a game unless that's unavoidable given attendance and the hard rules. The generator maximizes position variety before repeating. A pitching stint counts as one turn at pitcher (its length is governed by HR-9/HR-10), and a repeat is only flagged when the player has no more field innings than there are fielded positions. |
 | SR-2 | Each player's field innings should be **balanced between infield and outfield**, not just meet the HR-2/HR-6 minimums. A notice is shown when the difference is more than 2 innings. |
-| SR-3 | Fairness **evens out across the season**. When choices are otherwise equal, favor players with fewer season-to-date field innings, infield innings, or positions played, and fewer bench innings. |
+| SR-3 | Fairness **evens out across the season**, using finalized games only. Within the hard rules and the in-game preferences: players who have sat **less** than others take the bench turns; players who have pitched or caught less get the mound or the catcher's gear; players whose innings lean outfield are pulled toward the infield; and positions a player has played often are less likely. Comparisons use **per-game rates**, so a player who missed games isn't owed extra time. Players with no finalized games count as average. |
 
 ## 5. Batting order
 
@@ -104,7 +105,7 @@ Soft rules are preferences the generator optimizes for. Violations appear as inf
 | BO-3 | Each game **resumes with the next batter after the last player who actually batted** in the previous finalized game. |
 | BO-4 | **Absent players are skipped** for that game. The pointer follows the last player who actually batted, so the next game starts after that player in the fixed order, skipping anyone absent. |
 | BO-5 | If the last batter has since been removed from the roster, the next game starts from the top of the order. |
-| BO-6 | The last-batter pointer is stored per team and updated when a game is finalized, so the order can be reconstructed and audited. |
+| BO-6 | Each finalized game stores its plate appearances and last batter (the batter who took the final plate appearance, counting through that game's batting order). The pointer for the next game is the last batter of the **most recent finalized game by date** in which anyone batted, so reopening or deleting a game automatically restores the previous pointer. |
 
 Implemented in `src/domain/batting-order.ts`.
 
@@ -133,3 +134,7 @@ The **player summary** table shows each player's innings at Pitcher, Catcher, In
 - Each rule is one module in `src/domain/rules/` with `id` (for example `"HR-3"`), `label`, `severity` (`"error"` for hard, `"notice"` for soft), and a pure `validate(game) => Violation[]`.
 - Rules are registered in one list (`src/domain/rules/index.ts`). Adding a rule means adding a row here, one module, one registration line and its tests.
 - Each rule gets unit tests for passing and failing cases. The generator gets tests that its output satisfies all hard rules across attendance from 7 to 13+, innings from 3 to 9, and both pitcher limits. It also gets tests that repeated runs with the same inputs don't all produce the same lineup. Don't assert a single exact random output.
+
+## 9. Season stats
+
+Shown on the team page for active players, from finalized games only: games played, field innings, bench innings, infield innings (including pitcher and catcher), outfield innings, innings pitched, innings caught, number of different positions played, and plate appearances. Plate appearances per player come from the team total: everyone gets one per time through the order, and the top of that game's order gets the extras.

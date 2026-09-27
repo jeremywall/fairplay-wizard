@@ -8,7 +8,7 @@ This file gives Claude Code guidance for working in this repository.
 
 - **Users:** coaches (head and assistant) only. There are no parent, player, or league-admin roles.
 - **Sport:** baseball first, with softball as a close variant. Rules follow Little League and local-league conventions, **not** MLB rules (see Domain rules).
-- **Status:** early development. Sign-up/sign-in, teams, game settings, and roster + batting-order management work end to end, and the batting-order carry-over logic is in `src/domain`. The lineup generator works (attendance + options → lineup grid, player summary, fairness readout, rule check, Regenerate) but lineups aren't saved yet. Next: saving games, manual edits, finalizing (batting-order pointer, plate appearances) and season stats.
+- **Status:** early development. Sign-up/sign-in, teams, game settings, and roster + batting-order management work end to end, and the batting-order carry-over logic is in `src/domain`. The lineup generator works (attendance + options → lineup grid in batting order, player summary, fairness readout, rule check, Regenerate). Lineups can be saved as games, finalized with plate appearances (which sets the batting-order carry-over), reopened or deleted; the team page shows games and season stats, and the generator uses season history (SR-3). Not built yet: manual edits to a lineup.
 
 ## Tech stack (all Cloudflare)
 
@@ -42,7 +42,7 @@ This file gives Claude Code guidance for working in this repository.
   /js/htmx.min.js, /css   # Build output, gitignored
 /src
   index.ts                # Worker entry: Hono app, middleware, route mounting
-  /routes                 # HTMX route handlers returning HTML partials
+  /routes                 # HTMX route handlers returning HTML partials (app, auth, lineup, games)
   /views                  # HTML partial templates
   /auth                   # Better Auth config
   /middleware             # Session loading/requireUser, same-origin CSRF check

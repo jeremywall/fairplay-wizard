@@ -1,11 +1,14 @@
 import { type Context, Hono } from "hono";
+import { finalGameRecords, lastBatterPointer } from "../db/games";
 import { listPlayers, type Player } from "../db/players";
 import { getTeam, type TeamDetails } from "../db/teams";
+import { battingOrderForGame } from "../domain/batting-order";
 import { fairness } from "../domain/fairness";
 import { generateLineup } from "../domain/generator";
 import { type GameOptions, MAX_INNINGS, MIN_INNINGS } from "../domain/lineup";
 import { MIN_PLAYERS } from "../domain/positions";
 import { checkLineup } from "../domain/rules";
+import { seasonTotals } from "../domain/season";
 import type { AppEnv } from "../types";
 import { lineupResult, type SetupState, setupForm } from "../views/lineup";
 
@@ -54,14 +57,23 @@ lineupRoutes.post("/", async (c) => {
     return c.html(setupForm(team, roster, { ...state, error }));
   }
 
-  // Keep roster (batting) order for the lineup rows.
-  const players = roster.filter((p) => state.selected.has(p.id)).map(({ id, name }) => ({ id, name }));
+  // Rows follow this game's batting order, which resumes after the last batter
+  // of the most recent finalized game (BO-1 to BO-5).
+  const [pointer, records] = await Promise.all([lastBatterPointer(c.env.DB, team.id), finalGameRecords(c.env.DB, team.id)]);
+  const names = new Map(roster.map((p) => [p.id, p.name]));
+  const order = battingOrderForGame(
+    roster.map((p) => p.id),
+    state.selected,
+    pointer,
+  );
+  const players = order.map((id) => ({ id, name: names.get(id)! }));
   const options: GameOptions = {
     innings: state.innings,
     alignmentMode: team.alignmentMode,
     pitcherInningLimit: state.pitcherInningLimit,
     minDefensiveOuts: team.minDefensiveOuts,
   };
-  const { lineup } = generateLineup(players, options);
-  return c.html(lineupResult(team.id, lineup, checkLineup(lineup), fairness(lineup)));
+  const { lineup } = generateLineup(players, options, { season: seasonTotals(records) });
+  const today = new Date().toISOString().slice(0, 10);
+  return c.html(lineupResult(team.id, lineup, checkLineup(lineup), fairness(lineup), today));
 });
