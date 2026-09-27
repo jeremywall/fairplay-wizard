@@ -55,12 +55,12 @@ Positions are defined in one config module. Everything else (rules, generator, v
 | Option | Source | Notes |
 |---|---|---|
 | Attendance | Per game | Checklist of the active roster, with "All present" toggle. Defaults to nobody checked. At least 7 are required. |
-| Innings | Per game, defaulting to the team's **innings per game** setting | 1–9. |
+| Innings | Per game, defaulting to the team's **innings per game** setting | 3–9. |
 | Alignment mode | Per game | 9 or 10 positions, auto-selected from attendance (§2). |
 | Pitcher inning limit | Per game | 1 or 2 innings per pitcher (HR-9). |
 | Minimum defensive outs | Team setting (default 6) | HR-8 threshold. The generator works in whole innings, so the minimum in innings is `ceil(minDefensiveOuts / 3)`. |
 
-With very short games or unusual attendance, some hard rules may be impossible to satisfy together, for example HR-6 in a 2-inning game. The generator then returns its best lineup, and the rule check lists the rules it couldn't meet. It never fails silently.
+With very short games or unusual attendance, some hard rules may be impossible to satisfy together, for example in a 3-inning game with players on the bench: HR-2 and HR-6 together need 3 field innings from every player, so nobody could sit. The generator then returns its best lineup, and the rule check lists the rules it couldn't meet. It never fails silently.
 
 ## 4. Fielding rules
 
@@ -128,4 +128,4 @@ The **player summary** table shows each player's innings at Pitcher, Catcher, In
 
 - Each rule is one module in `src/domain/rules/` with `id` (for example `"HR-3"`), `label`, `severity` (`"error"` for hard, `"notice"` for soft), and a pure `validate(game) => Violation[]`.
 - Rules are registered in one list (`src/domain/rules/index.ts`). Adding a rule means adding a row here, one module, one registration line and its tests.
-- Each rule gets unit tests for passing and failing cases. The generator gets tests that its output satisfies all hard rules across attendance from 7 to 13+, innings from 1 to 9, and both pitcher limits. It also gets tests that repeated runs with the same inputs don't all produce the same lineup. Don't assert a single exact random output.
+- Each rule gets unit tests for passing and failing cases. The generator gets tests that its output satisfies all hard rules across attendance from 7 to 13+, innings from 3 to 9, and both pitcher limits. It also gets tests that repeated runs with the same inputs don't all produce the same lineup. Don't assert a single exact random output.

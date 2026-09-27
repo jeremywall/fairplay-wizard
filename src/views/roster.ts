@@ -27,7 +27,7 @@ export function teamSettings(team: TeamDetails, opts: { error?: string; saved?: 
     ${alert(opts.error)}
     <div class="flex flex-wrap items-end gap-4">
       <label class="text-sm font-medium">Innings per game
-        <input class="${inputClass} mt-1 block w-24" type="number" name="inningsPerGame" min="1" max="9" value="${team.inningsPerGame}" required>
+        <input class="${inputClass} mt-1 block w-24" type="number" name="inningsPerGame" min="3" max="9" value="${team.inningsPerGame}" required>
       </label>
       <label class="text-sm font-medium">Minimum defensive outs per player
         <input class="${inputClass} mt-1 block w-24" type="number" name="minDefensiveOuts" min="0" max="27" value="${team.minDefensiveOuts}" required>

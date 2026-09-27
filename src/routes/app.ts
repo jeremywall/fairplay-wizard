@@ -51,8 +51,8 @@ appRoutes.post("/teams/:teamId/settings", async (c) => {
   const team = await getTeam(c.env.DB, teamId);
 
   let error: string | undefined;
-  if (!Number.isInteger(inningsPerGame) || inningsPerGame < 1 || inningsPerGame > 9) {
-    error = "Innings per game must be a whole number from 1 to 9.";
+  if (!Number.isInteger(inningsPerGame) || inningsPerGame < 3 || inningsPerGame > 9) {
+    error = "Innings per game must be a whole number from 3 to 9.";
   } else if (!Number.isInteger(minDefensiveOuts) || minDefensiveOuts < 0 || minDefensiveOuts > inningsPerGame * 3) {
     error = `Minimum defensive outs must be a whole number from 0 to ${inningsPerGame * 3}.`;
   }

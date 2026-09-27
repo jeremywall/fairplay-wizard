@@ -110,6 +110,8 @@ describe("roster routes", () => {
     expect(ok).toContain("Saved");
     const bad = await (await post(settings, { inningsPerGame: "4", minDefensiveOuts: "13" }, { Cookie: cookie })).text();
     expect(bad).toContain("from 0 to 12");
+    const tooShort = await (await post(settings, { inningsPerGame: "2", minDefensiveOuts: "3" }, { Cookie: cookie })).text();
+    expect(tooShort).toContain("from 3 to 9");
   });
 
   it("hides a team from coaches who don't belong to it", async () => {
