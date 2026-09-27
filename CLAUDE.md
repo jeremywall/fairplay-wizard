@@ -8,7 +8,7 @@ This file gives Claude Code guidance for working in this repository.
 
 - **Users:** coaches (head and assistant) only. There are no parent, player, or league-admin roles.
 - **Sport:** baseball first, with softball as a close variant. Rules follow Little League and local-league conventions, **not** MLB rules (see Domain rules).
-- **Status:** early development. Sign-up, sign-in and team creation work end to end, and the batting-order carry-over logic is in `src/domain`. Rosters, the rotation generator and season stats are next.
+- **Status:** early development. Sign-up/sign-in, teams, game settings, and roster + batting-order management work end to end, and the batting-order carry-over logic is in `src/domain`. Games, the rotation generator and season stats are next.
 
 ## Tech stack (all Cloudflare)
 

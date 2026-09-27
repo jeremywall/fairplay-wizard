@@ -4,7 +4,7 @@ import type { SessionUser } from "../types";
 
 export function teamItem(team: TeamSummary) {
   return html`<li class="flex items-center justify-between rounded-md border border-slate-200 bg-white px-4 py-3">
-    <span class="font-medium">${team.name}</span>
+    <button class="font-medium text-emerald-800 hover:underline" hx-get="/app/teams/${team.id}" hx-target="#main" hx-swap="innerHTML">${team.name}</button>
     <span class="text-xs uppercase tracking-wide text-slate-500">${team.role === "head" ? "Head coach" : "Assistant"}</span>
   </li>`;
 }

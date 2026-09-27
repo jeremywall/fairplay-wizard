@@ -1,18 +1,7 @@
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createTeam, listTeamsForCoach, requireTeamAccess, TeamAccessError } from "../../src/db/teams";
-
-// Test storage persists across tests in a file, so each test gets fresh coaches.
-async function insertCoach(): Promise<string> {
-  const id = crypto.randomUUID();
-  const now = new Date().toISOString();
-  await env.DB.prepare(
-    `INSERT INTO "user" (id, name, email, emailVerified, createdAt, updatedAt) VALUES (?, ?, ?, 0, ?, ?)`,
-  )
-    .bind(id, "Coach", `${id}@example.com`, now, now)
-    .run();
-  return id;
-}
+import { insertCoach } from "../helpers";
 
 describe("team data access", () => {
   let coach: string;

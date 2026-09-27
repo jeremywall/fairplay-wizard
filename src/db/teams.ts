@@ -51,3 +51,35 @@ export async function requireTeamAccess(db: D1Database, coachId: string, teamId:
   if (!row) throw new TeamAccessError();
   return row.role;
 }
+
+export interface TeamDetails {
+  id: string;
+  name: string;
+  inningsPerGame: number;
+  minDefensiveOuts: number;
+}
+
+/** Returns team details. Call requireTeamAccess first. */
+export async function getTeam(db: D1Database, teamId: string): Promise<TeamDetails> {
+  const team = await db
+    .prepare(
+      `SELECT id, name, innings_per_game AS inningsPerGame, min_defensive_outs AS minDefensiveOuts
+         FROM team WHERE id = ?`,
+    )
+    .bind(teamId)
+    .first<TeamDetails>();
+  if (!team) throw new TeamAccessError();
+  return team;
+}
+
+/** Updates game settings. Call requireTeamAccess first. */
+export async function updateTeamSettings(
+  db: D1Database,
+  teamId: string,
+  settings: { inningsPerGame: number; minDefensiveOuts: number },
+): Promise<void> {
+  await db
+    .prepare(`UPDATE team SET innings_per_game = ?, min_defensive_outs = ? WHERE id = ?`)
+    .bind(settings.inningsPerGame, settings.minDefensiveOuts, teamId)
+    .run();
+}

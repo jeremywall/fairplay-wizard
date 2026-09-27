@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { createAuth } from "./auth";
+import { TeamAccessError } from "./db/teams";
 import { sameOrigin } from "./middleware/same-origin";
 import { loadSession } from "./middleware/session";
 import { appRoutes } from "./routes/app";
@@ -22,5 +23,11 @@ app.use("/auth/*", sameOrigin);
 app.use("/app/*", sameOrigin, loadSession);
 app.route("/auth", authRoutes);
 app.route("/app", appRoutes);
+
+app.onError((err, c) => {
+  if (err instanceof TeamAccessError) return c.text("Not found", 404);
+  console.error(err);
+  return c.text("Something went wrong.", 500);
+});
 
 export default app;
