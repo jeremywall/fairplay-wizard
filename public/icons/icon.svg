@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full-bleed background so the icon works as a maskable app icon. -->
+  <rect width="512" height="512" fill="#020617"/>
+  <!-- Infield diamond, kept inside the central safe zone. -->
+  <path d="M256 128 L384 256 L256 384 L128 256 Z" fill="#064e3b" stroke="#34d399" stroke-width="18" stroke-linejoin="round"/>
+  <circle cx="256" cy="256" r="24" fill="#34d399"/>
+  <g fill="#f8fafc">
+    <rect x="240" y="112" width="32" height="32" transform="rotate(45 256 128)"/>
+    <rect x="368" y="240" width="32" height="32" transform="rotate(45 384 256)"/>
+    <rect x="240" y="368" width="32" height="32" transform="rotate(45 256 384)"/>
+    <rect x="112" y="240" width="32" height="32" transform="rotate(45 128 256)"/>
+  </g>
+</svg>

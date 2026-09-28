@@ -6,6 +6,7 @@ import { type GameOptions, type Lineup, MAX_INNINGS, MIN_INNINGS, playerTotals, 
 import { categoryOf, fieldedPositions, MIN_PLAYERS, type Slot } from "../domain/positions";
 import type { Violation } from "../domain/rules";
 import { addGame, type SeasonTotals } from "../domain/season";
+import { busyLabel, inputText, nav, textLink } from "./ui";
 
 export interface SetupState {
   selected: Set<string>;
@@ -20,7 +21,7 @@ export const primaryButton =
 export const secondaryButton = "min-h-11 rounded-md border border-slate-600 bg-slate-900 px-4 py-2 font-medium hover:bg-slate-800";
 
 export function backToTeam(teamId: string) {
-  return html`<button class="text-sm text-slate-400 hover:underline" hx-get="/app/teams/${teamId}" hx-target="#main" hx-swap="innerHTML">← Back to team</button>`;
+  return html`<button class="${textLink}" ${nav(`/teams/${teamId}`)}>← Back to team</button>`;
 }
 
 export function setupForm(team: TeamDetails, roster: Player[], state: SetupState) {
@@ -28,9 +29,10 @@ export function setupForm(team: TeamDetails, roster: Player[], state: SetupState
   return html`<section class="mx-auto max-w-xl space-y-6" id="lineup-panel">
     <div>
       ${backToTeam(team.id)}
-      <h2 class="mt-2 text-2xl font-semibold">Plan a game: ${team.name}</h2>
+      <h2 class="text-2xl font-semibold">Plan a game: ${team.name}</h2>
     </div>
-    <form class="space-y-6" id="lineup-setup" hx-post="/app/teams/${team.id}/lineup" hx-target="#lineup-panel" hx-swap="outerHTML">
+    <form class="space-y-6" id="lineup-setup" hx-post="/app/teams/${team.id}/lineup" hx-target="#lineup-panel" hx-swap="outerHTML show:window:top"
+      hx-disabled-elt="find button[type='submit']">
       ${state.error ? html`<p class="rounded-md bg-red-950 px-3 py-2 text-sm text-red-300" role="alert">${state.error}</p>` : ""}
       <fieldset class="space-y-2">
         <div class="flex items-center justify-between">
@@ -50,7 +52,7 @@ export function setupForm(team: TeamDetails, roster: Player[], state: SetupState
       </fieldset>
 
       <label class="block font-semibold">Innings
-        <select class="mt-1 block min-h-11 w-28 rounded-md border border-slate-600 bg-slate-900 px-3 py-2 font-normal" name="innings">
+        <select class="mt-1 block min-h-11 w-28 rounded-md border border-slate-600 bg-slate-900 px-3 py-2 font-normal ${inputText}" name="innings">
           ${inningChoices.map((n) => html`<option value="${n}" ${n === state.innings ? "selected" : ""}>${n}</option>`)}
         </select>
       </label>
@@ -64,7 +66,7 @@ export function setupForm(team: TeamDetails, roster: Player[], state: SetupState
       </fieldset>
 
       <div>
-        <button class="${primaryButton} w-full" type="submit" data-generate ${state.selected.size < MIN_PLAYERS ? "disabled" : ""}>Generate lineup</button>
+        <button class="${primaryButton} w-full" type="submit" data-generate ${state.selected.size < MIN_PLAYERS ? "disabled" : ""}>${busyLabel("Generate lineup", "Generating…")}</button>
         <p class="mt-2 text-center text-sm text-slate-400">Needs at least ${MIN_PLAYERS} players.</p>
       </div>
     </form>
@@ -238,14 +240,16 @@ export function lineupResult(
   return html`<section class="space-y-6" id="lineup-panel">
     <div>
       ${backToTeam(teamId)}
-      <h2 class="mt-2 text-2xl font-semibold">Lineup</h2>
+      <h2 class="text-2xl font-semibold">Lineup</h2>
       <p class="text-sm text-slate-400">${lineupDescription(lineup)}</p>
     </div>
 
-    <form class="flex flex-wrap gap-2" hx-post="/app/teams/${teamId}/lineup" hx-target="#lineup-panel" hx-swap="outerHTML">
+    <form class="flex flex-wrap gap-2" hx-post="/app/teams/${teamId}/lineup" hx-target="#lineup-panel" hx-swap="outerHTML show:window:top"
+      hx-disabled-elt="find button[type='submit']">
       ${optionInputs}
-      <button class="${primaryButton}" type="submit">Regenerate</button>
-      <button class="${secondaryButton}" type="button" hx-post="/app/teams/${teamId}/lineup/setup" hx-target="#lineup-panel" hx-swap="outerHTML">Change players or options</button>
+      <button class="${primaryButton}" type="submit">${busyLabel("Regenerate", "Generating…")}</button>
+      <button class="${secondaryButton}" type="button" hx-post="/app/teams/${teamId}/lineup/setup" hx-target="#lineup-panel"
+        hx-swap="outerHTML show:window:top" hx-disabled-elt="this">Change players or options</button>
     </form>
 
     ${lineupGrid(lineup)}
@@ -253,7 +257,8 @@ export function lineupResult(
     ${summaryTable(lineup)}
     ${seasonWithLineupTable(lineup, season)}
 
-    <form class="space-y-3 rounded-lg bg-slate-900 p-4 shadow-sm" hx-post="/app/teams/${teamId}/games" hx-target="#main" hx-swap="innerHTML">
+    <form class="space-y-3 rounded-lg bg-slate-900 p-4 shadow-sm" hx-post="/app/teams/${teamId}/games" hx-target="#main"
+      hx-swap="innerHTML show:window:top" hx-disabled-elt="find button[type='submit']">
       <h3 class="font-semibold">Save this lineup</h3>
       <p class="text-sm text-slate-400">Saved games appear on the team page. After the game, finalize it so it counts toward season stats.</p>
       <input type="hidden" name="lineup" value="${saved}">
@@ -261,12 +266,13 @@ export function lineupResult(
       <input type="hidden" name="pitcherInningLimit" value="${options.pitcherInningLimit}">
       <div class="flex flex-wrap items-end gap-3">
         <label class="text-sm font-medium">Date
-          <input class="mt-1 block min-h-11 rounded-md border border-slate-600 px-3 py-2" type="date" name="date" value="${today}" required>
+          <input class="mt-1 block min-h-11 rounded-md border border-slate-600 px-3 py-2 ${inputText}" type="date" name="date" value="${today}" required>
         </label>
         <label class="text-sm font-medium">Opponent (optional)
-          <input class="mt-1 block min-h-11 rounded-md border border-slate-600 px-3 py-2" type="text" name="opponent" maxlength="60">
+          <input class="mt-1 block min-h-11 rounded-md border border-slate-600 px-3 py-2 ${inputText}" type="text" name="opponent" maxlength="60"
+            autocapitalize="words" autocomplete="off" enterkeyhint="done">
         </label>
-        <button class="${primaryButton}" type="submit">Save game</button>
+        <button class="${primaryButton}" type="submit">${busyLabel("Save game", "Saving…")}</button>
       </div>
     </form>
   </section>`;

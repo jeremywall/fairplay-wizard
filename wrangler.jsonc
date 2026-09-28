@@ -8,7 +8,9 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*", "/app/*", "/auth/*"]
+    "run_worker_first": ["/api/*", "/app/*", "/auth/*"],
+    // Page addresses like /teams/abc get the app shell, which loads that screen.
+    "not_found_handling": "single-page-application"
   },
   "d1_databases": [
     {
