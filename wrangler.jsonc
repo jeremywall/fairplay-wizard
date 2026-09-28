@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "fairplay-wizard",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-20",
+  // Better Auth relies on Node APIs such as AsyncLocalStorage.
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/app/*", "/auth/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "fairplay",
+      "database_id": "8a287295-e8fd-49df-b37b-7bbc596f8348",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "build": {
+    "command": "npm run build",
+    "watch_dir": ["src", "public/index.html"]
+  },
+  // Local dev overrides this with BETTER_AUTH_URL from .dev.vars.
+  "vars": { "BETTER_AUTH_URL": "https://fairplay-wizard.jeremywall.workers.dev" },
+  "observability": { "enabled": true }
+}

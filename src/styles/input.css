@@ -1,0 +1,5 @@
+@import "tailwindcss";
+
+/* Most markup is rendered by the Worker, so scan its source as well as the shell. */
+@source "../../src";
+@source "../../public/index.html";

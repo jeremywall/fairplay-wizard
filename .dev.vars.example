@@ -1,0 +1,2 @@
+BETTER_AUTH_SECRET=generate-with: node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+BETTER_AUTH_URL=http://localhost:8787
