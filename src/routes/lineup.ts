@@ -65,7 +65,8 @@ lineupRoutes.post("/", async (c) => {
     minDefensiveOuts: team.minDefensiveOuts,
     minInfieldInnings: team.minInfieldInnings,
   };
-  const { lineup } = generateLineup(players, options, { season: seasonTotals(records) });
+  const season = seasonTotals(records);
+  const { lineup } = generateLineup(players, options, { season });
   const today = new Date().toISOString().slice(0, 10);
-  return c.html(lineupResult(team.id, lineup, checkLineup(lineup), fairness(lineup), today));
+  return c.html(lineupResult(team.id, lineup, checkLineup(lineup), fairness(lineup), season, today));
 });

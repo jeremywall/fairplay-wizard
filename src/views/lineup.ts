@@ -5,6 +5,7 @@ import type { FairnessReport } from "../domain/fairness";
 import { type GameOptions, type Lineup, MAX_INNINGS, MIN_INNINGS, playerTotals, slotsOf } from "../domain/lineup";
 import { categoryOf, fieldedPositions, MIN_PLAYERS, type Slot } from "../domain/positions";
 import type { Violation } from "../domain/rules";
+import { addGame, type SeasonTotals } from "../domain/season";
 
 export interface SetupState {
   selected: Set<string>;
@@ -172,8 +173,62 @@ export function summaryTable(lineup: Lineup) {
   </div>`;
 }
 
+/**
+ * Season totals from finalized games plus this lineup, at P, C, IF (1B–SS), OF
+ * and bench. Each cell shows the new total and, when this game adds to it, "+n".
+ */
+export function seasonWithLineupTable(lineup: Lineup, season: ReadonlyMap<string, SeasonTotals>) {
+  const cell = (total: number, added: number) =>
+    html`<td class="px-2 py-2 text-center tabular-nums">${total}${added > 0
+      ? html`<span class="block text-xs text-emerald-400">+${added}</span>`
+      : ""}</td>`;
+  const head = "px-2 py-2 text-center font-medium";
+  return html`<div class="overflow-x-auto rounded-md border border-slate-700 bg-slate-900">
+    <table class="min-w-full text-sm">
+      <caption class="px-3 py-2 text-left font-semibold">
+        Season totals with this lineup
+        <span class="block text-xs font-normal text-slate-400">Finalized games so far plus this game (+ this game's innings).</span>
+      </caption>
+      <thead class="bg-slate-800 text-slate-400">
+        <tr>
+          <th class="sticky left-0 bg-slate-800 px-3 py-2 text-left font-medium" scope="col">Player</th>
+          <th class="${head}" scope="col" title="Games">G</th>
+          <th class="${head}" scope="col">P</th>
+          <th class="${head}" scope="col">C</th>
+          <th class="${head}" scope="col" title="1B, 2B, 3B, SS">IF</th>
+          <th class="${head}" scope="col">OF</th>
+          <th class="${head}" scope="col">Bench</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-800">
+        ${lineup.players.map((player, p) => {
+          const slots = slotsOf(lineup, p);
+          const game = playerTotals(slots);
+          const after = addGame(season.get(player.id), slots);
+          return html`<tr>
+            <th class="sticky left-0 whitespace-nowrap bg-slate-900 px-3 py-2 text-left font-medium" scope="row">${player.name}</th>
+            <td class="px-2 py-2 text-center tabular-nums">${after.games}</td>
+            ${cell(after.pitcher, game.pitcher)}
+            ${cell(after.catcher, game.catcher)}
+            ${cell(after.infield - after.pitcher - after.catcher, game.infield - game.pitcher - game.catcher)}
+            ${cell(after.outfield, game.outfield)}
+            ${cell(after.bench, game.bench)}
+          </tr>`;
+        })}
+      </tbody>
+    </table>
+  </div>`;
+}
+
 /** A freshly generated lineup, with Regenerate and Save. */
-export function lineupResult(teamId: string, lineup: Lineup, violations: Violation[], report: FairnessReport, today: string) {
+export function lineupResult(
+  teamId: string,
+  lineup: Lineup,
+  violations: Violation[],
+  report: FairnessReport,
+  season: ReadonlyMap<string, SeasonTotals>,
+  today: string,
+) {
   const { options, players } = lineup;
   const optionInputs = html`${players.map((p) => html`<input type="hidden" name="player" value="${p.id}">`)}
     <input type="hidden" name="innings" value="${options.innings}">
@@ -196,6 +251,7 @@ export function lineupResult(teamId: string, lineup: Lineup, violations: Violati
     ${lineupGrid(lineup)}
     ${ruleCheckPanel(violations, report)}
     ${summaryTable(lineup)}
+    ${seasonWithLineupTable(lineup, season)}
 
     <form class="space-y-3 rounded-lg bg-slate-900 p-4 shadow-sm" hx-post="/app/teams/${teamId}/games" hx-target="#main" hx-swap="innerHTML">
       <h3 class="font-semibold">Save this lineup</h3>

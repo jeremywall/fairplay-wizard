@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { generateLineup, seasonBias } from "../../src/domain/generator";
 import type { GameOptions } from "../../src/domain/lineup";
 import { playerTotals, slotsOf } from "../../src/domain/lineup";
-import { emptyTotals, type SeasonTotals, seasonTotals } from "../../src/domain/season";
+import { addGame, emptyTotals, type SeasonTotals, seasonTotals } from "../../src/domain/season";
 
 const players = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `p${i}`, name: `Player ${i + 1}` }));
 
@@ -16,6 +16,16 @@ describe("seasonTotals", () => {
       games: 1, field: 2, bench: 0, infield: 1, outfield: 1, pitcher: 1, catcher: 0, positions: { P: 1, LF: 1 },
     });
     expect(totals.get("b")).toMatchObject({ games: 2, field: 2, bench: 1, catcher: 1, positions: { C: 1, SS: 1 } });
+  });
+});
+
+describe("addGame", () => {
+  it("adds a game without changing the season totals it started from", () => {
+    const before = { ...emptyTotals(), games: 1, pitcher: 1, infield: 1, field: 1, positions: { P: 1 } };
+    const after = addGame(before, ["P", "BN", "LF"]);
+    expect(after).toMatchObject({ games: 2, pitcher: 2, infield: 2, outfield: 1, bench: 1, field: 3, positions: { P: 2, LF: 1 } });
+    expect(before).toMatchObject({ games: 1, pitcher: 1, positions: { P: 1 } });
+    expect(addGame(undefined, ["C"])).toMatchObject({ games: 1, catcher: 1 });
   });
 });
 
