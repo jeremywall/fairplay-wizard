@@ -25,6 +25,8 @@ This file gives Claude Code guidance for working in this repository.
 
 - **HTMX expects HTML, not JSON.** Worker routes render and return HTML partials. Don't add JSON endpoints plus client-side rendering unless there is a specific reason.
 - Keep client-side JavaScript minimal: HTMX config and small UI glue only. There's no React/Vue/Svelte.
+- **Every screen has its own address** so back, refresh and bookmarks work on phones. Screens are fragments at `/app/...`; the address shown is the same path without `/app` (`/` for `/app/home`). Link between screens with `nav(pageUrl)` from `src/views/ui.ts`, which sets `hx-get`, `hx-push-url` and the swap. Static assets use `not_found_handling: "single-page-application"`, so any page address serves `public/index.html`, and `public/js/app.js` loads the matching fragment. A POST that lands on a new screen sets `HX-Push-Url` (or `HX-Replace-Url`). htmx's history cache is off, so back/forward reloads the address.
+- **Phone-friendly forms:** every button that sends a request gets `hx-disabled-elt` (to prevent double submits) and a `busyLabel(...)` ("Saving…"), using the `busy:` Tailwind variant. Inputs use `inputText` (16px, so iPhones don't zoom), and tap targets are at least 44px (`min-h-11`, or `textLink` for small links).
 - **Same origin:** the Worker serves both the static shell and the HTMX routes, so there's no CORS setup and no separate API domain.
 - **Auth:** Better Auth issues an **HttpOnly, Secure, SameSite=Lax session cookie**. Every app route goes through auth middleware that resolves the session to a coach, and unauthenticated HTMX requests get a response that redirects to login (`HX-Redirect`). Don't put tokens in `localStorage` or JavaScript.
 - **CSRF:** because auth is cookie-based, state-changing routes (POST/PUT/PATCH/DELETE) must reject requests whose `Origin` header doesn't match the app's origin. Put this check in shared middleware.
@@ -37,8 +39,9 @@ This file gives Claude Code guidance for working in this repository.
 
 ```
 /public                   # Static assets served by the Worker (Workers Static Assets)
-  index.html              # SPA shell (loads HTMX + built CSS)
-  /js/app.js              # Small UI glue (lineup setup form)
+  index.html              # SPA shell (loads HTMX + built CSS), served for every page address
+  manifest.webmanifest    # Add to Home Screen (standalone app), with /icons
+  /js/app.js              # Small UI glue: load the screen for the address, lineup setup form
   /js/htmx.min.js, /css   # Build output, gitignored
 /.github/workflows        # CI and deploy (ci-deploy.yml)
 /src
@@ -80,6 +83,7 @@ npx wrangler secret put BETTER_AUTH_SECRET          # Rotate the production auth
 - Tailwind scans `src` as well as `public/index.html` (see `src/styles/input.css`), because most markup, including class names, is rendered by the Worker.
 - Better Auth's tables are in `migrations/0001_better_auth.sql`. If Better Auth options or plugins change its schema, run `node scripts/generate-auth-schema.mjs` and write the difference as a new migration.
 - **Testing notes:** tests call the Worker through `exports.default.fetch` from `cloudflare:workers`, and migrations are applied by `test/apply-migrations.ts`. D1 storage is **not** reset between tests in a file, so create unique ids and emails in each test.
+- **Windows dev servers:** stopping `npx wrangler dev` can leave `workerd.exe` running, and an old server on port 8787 will then answer requests with stale code. If behavior looks stale, check for leftover `workerd.exe` processes and stop them.
 - **Compatibility date:** `@cloudflare/vitest-pool-workers` bundles its own, older `workerd`. Don't set `compatibility_date` in `wrangler.jsonc` newer than that runtime supports, or the tests hang at startup.
 - **Deploys run in GitHub Actions** (`.github/workflows/ci-deploy.yml`). Every pull request runs the typecheck and tests, then deploys to **staging** (see below). Each push to `main` runs them again, then applies D1 migrations, checks none are pending, deploys, and smoke-tests the site. The deploy job uses the `production` environment, which waits for the repo owner's approval and only accepts `main`. It uses the `CLOUDFLARE_API_TOKEN` secret and the `CLOUDFLARE_ACCOUNT_ID` variable on that environment. Ship changes by merging a PR; use the manual commands only if the workflow is unavailable. Keep actions pinned to commit SHAs.
 - **Staging:** https://fairplay-wizard-staging.jeremywall.workers.dev, the `staging` environment in `wrangler.jsonc` (Worker `fairplay-wizard-staging`, D1 database `fairplay-staging`, its own `BETTER_AUTH_SECRET`). The latest pull request push deploys there automatically, with its migrations applied to the staging database first; there's one staging site, so the most recent PR push wins. Bindings and vars aren't inherited by Wrangler environments, so a new binding or var must be added to both the top level and `env.staging`. Accounts are separate from production: sign up on staging, then load sample data with `node scripts/seed-sample-team.mjs <email> > seed.sql` and `npx wrangler d1 execute fairplay-staging --remote --env staging --file seed.sql`. Keep real players' names out of staging. If an abandoned PR left a migration on staging that `main` never got, recreate the staging database.

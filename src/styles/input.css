@@ -3,3 +3,7 @@
 /* Most markup is rendered by the Worker, so scan its source as well as the shell. */
 @source "../../src";
 @source "../../public/index.html";
+@source "../../public/js/app.js";
+
+/* Styles for an element (or its contents) while its HTMX request is in flight. */
+@custom-variant busy (&:is(.htmx-request, .htmx-request *));

@@ -199,7 +199,9 @@ describe("game routes", () => {
     const first = await generate(cookie, teamId, playerIds);
     expect(rowNames(first).slice(0, 7)).toEqual(["Ava", "Ben", "Cal", "Dee", "Eli", "Fay", "Gus"]);
 
-    const saved = await (await saveFrom(cookie, teamId, first)).text();
+    const savedRes = await saveFrom(cookie, teamId, first);
+    const saved = await savedRes.text();
+    expect(savedRes.headers.get("HX-Push-Url")).toBe(`/teams/${teamId}/games/${saved.match(/games\/([^/"]+)\/finalize/)![1]}`);
     expect(saved).toContain("vs Cubs");
     expect(saved).toContain("Finalize game");
     const gameId = saved.match(/games\/([^/"]+)\/finalize/)![1];
@@ -232,6 +234,7 @@ describe("game routes", () => {
     expect(reopened).toContain("Finalize game");
 
     const res = await request("DELETE", `/app/teams/${teamId}/games/${gameId}`, { headers: { Cookie: cookie } });
+    expect(res.headers.get("HX-Replace-Url")).toBe(`/teams/${teamId}`);
     expect(await res.text()).toContain("No saved games yet.");
   });
 

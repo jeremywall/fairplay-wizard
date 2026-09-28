@@ -71,6 +71,8 @@ gameRoutes.post("/", async (c) => {
     players: lineup.players,
     innings: lineup.innings,
   });
+  // Show the saved game's own address, so refresh and back work (see src/views/ui.ts).
+  c.header("HX-Push-Url", `/teams/${teamId}/games/${gameId}`);
   return c.html(await renderGame(c.env.DB, teamId, gameId));
 });
 
@@ -97,5 +99,7 @@ gameRoutes.post("/:gameId/reopen", async (c) => {
 gameRoutes.delete("/:gameId", async (c) => {
   const teamId = c.req.param("teamId")!;
   await deleteGame(c.env.DB, teamId, c.req.param("gameId"));
+  // The deleted game's address no longer exists, so replace it with the team's.
+  c.header("HX-Replace-Url", `/teams/${teamId}`);
   return c.html(await renderTeamPage(c.env.DB, teamId));
 });
