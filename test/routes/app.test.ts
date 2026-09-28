@@ -211,6 +211,15 @@ describe("game routes", () => {
     expect(teamPage).toMatch(/vs Cubs[\s\S]*Final/);
     // 7 players and 7 positions: Ava played all 6 innings of 1 game and never sat.
     expect(teamPage).toMatch(/scope="row">Ava<\/th>\s*<td[^>]*>1<\/td>\s*<td[^>]*>6<\/td>\s*<td[^>]*>0<\/td>/);
+
+    // The next lineup shows season totals including the proposed game: 2 games, 12 innings for Ava.
+    const next = await generate(cookie, teamId, playerIds);
+    const seasonTable = next.slice(next.indexOf("Season totals with this lineup"));
+    const avaRow = seasonTable.match(/scope="row">Ava<\/th>([\s\S]*?)<\/tr>/)![1];
+    const [games, ...innings] = [...avaRow.matchAll(/<td[^>]*>(\d+)/g)].map((m) => Number(m[1]));
+    expect(games).toBe(2);
+    expect(innings).toHaveLength(5);
+    expect(innings.reduce((a, b) => a + b, 0)).toBe(12);
   });
 
   it("reopens and deletes games", async () => {
