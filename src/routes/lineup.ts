@@ -29,14 +29,14 @@ async function readSetup(c: Context<AppEnv>, team: TeamDetails, roster: Player[]
   return {
     selected,
     innings: Number.isInteger(innings) && innings >= MIN_INNINGS && innings <= MAX_INNINGS ? innings : team.inningsPerGame,
-    pitcherInningLimit: body.pitcherInningLimit === "1" ? 1 : 2,
+    pitcherInningLimit: body.pitcherInningLimit === "2" ? 2 : 1,
   };
 }
 
 lineupRoutes.get("/", async (c) => {
   const { team, roster } = await loadTeam(c);
   return c.html(
-    setupForm(team, roster, { selected: new Set(), innings: team.inningsPerGame, pitcherInningLimit: 2 }),
+    setupForm(team, roster, { selected: new Set(), innings: team.inningsPerGame, pitcherInningLimit: 1 }),
   );
 });
 

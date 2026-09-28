@@ -64,7 +64,7 @@ gameRoutes.post("/", async (c) => {
     options: {
       innings,
       alignmentMode: team.alignmentMode,
-      pitcherInningLimit: form.pitcherInningLimit === "1" ? 1 : 2,
+      pitcherInningLimit: form.pitcherInningLimit === "2" ? 2 : 1,
       minDefensiveOuts: team.minDefensiveOuts,
       minInfieldInnings: team.minInfieldInnings,
     },

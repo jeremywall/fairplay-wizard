@@ -107,6 +107,7 @@ describe("lineup routes", () => {
     const page = await res.text();
     expect(page).toContain("Who's here?");
     expect(page.match(/data-attendance/g)).toHaveLength(3);
+    expect(page).toMatch(/name="pitcherInningLimit" value="1" checked/);
   });
 
   it("asks for at least 7 players", async () => {

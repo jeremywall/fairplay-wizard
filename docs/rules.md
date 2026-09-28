@@ -59,7 +59,7 @@ Positions are defined in one config module. Everything else (rules, generator, v
 | Attendance | Per game | Checklist of the active roster, with "All present" toggle. Defaults to nobody checked. At least 7 are required. |
 | Innings | Per game, defaulting to the team's **innings per game** setting | 3–9. |
 | Alignment mode | Team setting (default 10) | 9-player or 10-player defense, used with 10 or more present (§2). |
-| Pitcher inning limit | Per game | 1 or 2 innings per pitcher (HR-9). |
+| Pitcher inning limit | Per game (default 1) | 1 or 2 innings per pitcher (HR-9). |
 | Minimum defensive outs | Team setting (default 6) | HR-8 threshold. The generator works in whole innings, so the minimum in innings is `ceil(minDefensiveOuts / 3)`. |
 | Minimum infield innings | Team setting (default 2) | HR-6 threshold, 0 up to the innings per game. Short games usually need 1: with 10 players over 3 innings there are only 18 infield slots, not the 20 that a minimum of 2 needs. |
 
