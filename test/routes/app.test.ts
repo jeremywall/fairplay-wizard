@@ -35,6 +35,11 @@ async function signUp(name: string): Promise<string> {
   return cookie;
 }
 
+/** Player ids from a rendered roster, in roster order. */
+function playerIdsIn(rosterHtml: string): string[] {
+  return [...rosterHtml.matchAll(/hx-delete="\/app\/teams\/[^/]+\/players\/([^"]+)"/g)].map((m) => m[1]);
+}
+
 async function createTeam(cookie: string, name: string): Promise<string> {
   const res = await post("/app/teams", { name }, { Cookie: cookie });
   const id = (await res.text()).match(/hx-get="\/app\/teams\/([^"]+)"/)?.[1];
@@ -82,7 +87,7 @@ describe("lineup routes", () => {
     for (let i = 1; i <= count; i++) {
       html = await (await post(`/app/teams/${teamId}/players`, { name: `Kid ${i}` }, { Cookie: cookie })).text();
     }
-    const playerIds = [...html.matchAll(/players\/([^/"]+)\/move\?direction=up/g)].map((m) => m[1]);
+    const playerIds = playerIdsIn(html);
     return { cookie, teamId, playerIds };
   }
 
@@ -125,7 +130,7 @@ describe("lineup routes", () => {
     const setup = await (await exports.default.fetch(`${ORIGIN}/app/teams/${teamId}/lineup`, { headers: { Cookie: cookie } })).text();
     expect(setup).toContain("10-player defense");
 
-    await post(`/app/teams/${teamId}/settings`, { inningsPerGame: "6", minDefensiveOuts: "6", alignmentMode: "9" }, { Cookie: cookie });
+    await post(`/app/teams/${teamId}/settings`, { inningsPerGame: "6", minDefensiveOuts: "6", minInfieldInnings: "2", alignmentMode: "9" }, { Cookie: cookie });
     const page = await (await generate(teamId, cookie, playerIds, { alignmentMode: "10" })).text();
     expect(page).toContain("11 players · 9 fielders");
     expect(page).toContain(">CF<");
@@ -164,7 +169,7 @@ describe("game routes", () => {
     for (const name of ["Ava", "Ben", "Cal", "Dee", "Eli", "Fay", "Gus"]) {
       html = await (await post(`/app/teams/${teamId}/players`, { name }, { Cookie: cookie })).text();
     }
-    const playerIds = [...html.matchAll(/players\/([^/"]+)\/move\?direction=up/g)].map((m) => m[1]);
+    const playerIds = playerIdsIn(html);
     return { cookie, teamId, playerIds };
   }
 
@@ -188,54 +193,40 @@ describe("game routes", () => {
     );
   }
 
-  it("saves, finalizes, and carries the batting order into the next game", async () => {
+  it("saves a lineup and finalizes it into season stats", async () => {
     const { cookie, teamId, playerIds } = await setup();
     const first = await generate(cookie, teamId, playerIds);
-    const firstOrder = rowNames(first).slice(0, 7);
-    expect(firstOrder).toEqual(["Ava", "Ben", "Cal", "Dee", "Eli", "Fay", "Gus"]);
+    expect(rowNames(first).slice(0, 7)).toEqual(["Ava", "Ben", "Cal", "Dee", "Eli", "Fay", "Gus"]);
 
     const saved = await (await saveFrom(cookie, teamId, first)).text();
     expect(saved).toContain("vs Cubs");
     expect(saved).toContain("Finalize game");
     const gameId = saved.match(/games\/([^/"]+)\/finalize/)![1];
 
-    // 9 plate appearances with 7 batters: Ben (2nd) batted last.
-    const final = await (await post(`/app/teams/${teamId}/games/${gameId}/finalize`, { plateAppearances: "9" }, { Cookie: cookie })).text();
-    expect(final).toContain("Final");
-    expect(final).toContain("Ben</span> batted last");
-
-    const next = await generate(cookie, teamId, playerIds);
-    expect(rowNames(next).slice(0, 7)).toEqual(["Cal", "Dee", "Eli", "Fay", "Gus", "Ava", "Ben"]);
+    const final = await (await post(`/app/teams/${teamId}/games/${gameId}/finalize`, {}, { Cookie: cookie })).text();
+    expect(final).toContain("counts toward season stats");
 
     const teamPage = await (await exports.default.fetch(`${ORIGIN}/app/teams/${teamId}`, { headers: { Cookie: cookie } })).text();
-    expect(teamPage).toContain("Season stats");
     expect(teamPage).toMatch(/vs Cubs[\s\S]*Final/);
-    // Ava led off and got 2 of the 9 plate appearances; 1 game, 6 innings split between field and bench.
-    expect(teamPage).toMatch(/scope="row">Ava<\/th>\s*<td[^>]*>1<\/td>(\s*<td[^>]*>\d+<\/td>){7}\s*<td[^>]*>2<\/td>/);
+    // 7 players and 7 positions: Ava played all 6 innings of 1 game and never sat.
+    expect(teamPage).toMatch(/scope="row">Ava<\/th>\s*<td[^>]*>1<\/td>\s*<td[^>]*>6<\/td>\s*<td[^>]*>0<\/td>/);
   });
 
   it("reopens and deletes games", async () => {
     const { cookie, teamId, playerIds } = await setup();
     const saved = await (await saveFrom(cookie, teamId, await generate(cookie, teamId, playerIds))).text();
     const gameId = saved.match(/games\/([^/"]+)\/finalize/)![1];
-    await post(`/app/teams/${teamId}/games/${gameId}/finalize`, { plateAppearances: "9" }, { Cookie: cookie });
+    await post(`/app/teams/${teamId}/games/${gameId}/finalize`, {}, { Cookie: cookie });
 
     const reopened = await (await post(`/app/teams/${teamId}/games/${gameId}/reopen`, {}, { Cookie: cookie })).text();
     expect(reopened).toContain("Finalize game");
-    expect(rowNames(await generate(cookie, teamId, playerIds))[0]).toBe("Ava");
 
     const res = await request("DELETE", `/app/teams/${teamId}/games/${gameId}`, { headers: { Cookie: cookie } });
     expect(await res.text()).toContain("No saved games yet.");
   });
 
-  it("rejects invalid finalize input and tampered lineups", async () => {
+  it("rejects tampered lineups", async () => {
     const { cookie, teamId, playerIds } = await setup();
-    const page = await generate(cookie, teamId, playerIds);
-    const saved = await (await saveFrom(cookie, teamId, page)).text();
-    const gameId = saved.match(/games\/([^/"]+)\/finalize/)![1];
-    const bad = await (await post(`/app/teams/${teamId}/games/${gameId}/finalize`, { plateAppearances: "-1" }, { Cookie: cookie })).text();
-    expect(bad).toContain("Plate appearances must be a whole number");
-
     const other = await setup();
     const tampered = JSON.stringify({ players: [...playerIds.slice(0, 6), other.playerIds[0]], innings: [] });
     const res = await post(`/app/teams/${teamId}/games`, { lineup: tampered, innings: "6", date: "2026-10-04" }, { Cookie: cookie });
@@ -253,7 +244,7 @@ describe("game routes", () => {
 });
 
 describe("roster routes", () => {
-  it("adds, reorders and removes players", async () => {
+  it("adds and removes players", async () => {
     const cookie = await signUp("Pat");
     const teamId = await createTeam(cookie, "Tigers");
     const players = `/app/teams/${teamId}/players`;
@@ -262,10 +253,7 @@ describe("roster routes", () => {
     const added = await (await post(players, { name: "Ben", jerseyNumber: "" }, { Cookie: cookie })).text();
     expect(added).toMatch(/Ava[\s\S]*#3[\s\S]*Ben/);
 
-    const playerIds = [...added.matchAll(/players\/([^/"]+)\/move\?direction=up/g)].map((m) => m[1]);
-    const benId = playerIds[1];
-    const moved = await (await post(`${players}/${benId}/move?direction=up`, {}, { Cookie: cookie })).text();
-    expect(moved).toMatch(/Ben[\s\S]*Ava/);
+    const benId = playerIdsIn(added)[1];
 
     const removed = await (await request("DELETE", `${players}/${benId}`, { headers: { Cookie: cookie } })).text();
     expect(removed).toContain("Ava");
@@ -284,14 +272,18 @@ describe("roster routes", () => {
     const teamId = await createTeam(cookie, "Tigers");
     const settings = `/app/teams/${teamId}/settings`;
 
-    const ok = await (await post(settings, { inningsPerGame: "4", minDefensiveOuts: "6", alignmentMode: "10" }, { Cookie: cookie })).text();
+    const ok = await (await post(settings, { inningsPerGame: "4", minDefensiveOuts: "6", minInfieldInnings: "1", alignmentMode: "10" }, { Cookie: cookie })).text();
     expect(ok).toContain("Saved");
-    const bad = await (await post(settings, { inningsPerGame: "4", minDefensiveOuts: "13", alignmentMode: "10" }, { Cookie: cookie })).text();
+    const bad = await (await post(settings, { inningsPerGame: "4", minDefensiveOuts: "13", minInfieldInnings: "1", alignmentMode: "10" }, { Cookie: cookie })).text();
     expect(bad).toContain("from 0 to 12");
-    const tooShort = await (await post(settings, { inningsPerGame: "2", minDefensiveOuts: "3", alignmentMode: "10" }, { Cookie: cookie })).text();
+    const tooShort = await (await post(settings, { inningsPerGame: "2", minDefensiveOuts: "3", minInfieldInnings: "1", alignmentMode: "10" }, { Cookie: cookie })).text();
     expect(tooShort).toContain("from 3 to 9");
-    const noMode = await (await post(settings, { inningsPerGame: "6", minDefensiveOuts: "6", alignmentMode: "11" }, { Cookie: cookie })).text();
+    const noMode = await (await post(settings, { inningsPerGame: "6", minDefensiveOuts: "6", minInfieldInnings: "1", alignmentMode: "11" }, { Cookie: cookie })).text();
     expect(noMode).toContain("Choose a 9-player or 10-player defense.");
+    const tooMuchInfield = { inningsPerGame: "3", minDefensiveOuts: "6", minInfieldInnings: "4", alignmentMode: "10" };
+    expect(await (await post(settings, tooMuchInfield, { Cookie: cookie })).text()).toContain(
+      "Minimum infield innings must be a whole number from 0 to 3.",
+    );
   });
 
   it("hides a team from coaches who don't belong to it", async () => {

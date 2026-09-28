@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { deleteGame, finalizeGame, getGame, reopenGame, saveGame } from "../db/games";
 import { listPlayers } from "../db/players";
 import { getTeam } from "../db/teams";
-import { lastBatterOfGame } from "../domain/batting-order";
 import { fairness } from "../domain/fairness";
 import { type Lineup, MAX_INNINGS, MIN_INNINGS } from "../domain/lineup";
 import { MIN_PLAYERS, POSITIONS, type Slot } from "../domain/positions";
@@ -15,12 +14,11 @@ import { renderTeamPage } from "./team-page";
 export const gameRoutes = new Hono<AppEnv>();
 
 const VALID_SLOTS = new Set<string>([...Object.keys(POSITIONS), "BN"]);
-const MAX_PLATE_APPEARANCES = 200;
 
-async function renderGame(db: D1Database, teamId: string, gameId: string, opts: { error?: string } = {}) {
+async function renderGame(db: D1Database, teamId: string, gameId: string) {
   const game = await getGame(db, teamId, gameId);
   const lineup: Lineup = { players: game.players, options: game.options, innings: game.innings };
-  return gamePage(teamId, game, lineup, checkLineup(lineup), fairness(lineup), opts);
+  return gamePage(teamId, game, lineup, checkLineup(lineup), fairness(lineup));
 }
 
 /**
@@ -68,8 +66,9 @@ gameRoutes.post("/", async (c) => {
       alignmentMode: team.alignmentMode,
       pitcherInningLimit: form.pitcherInningLimit === "1" ? 1 : 2,
       minDefensiveOuts: team.minDefensiveOuts,
+      minInfieldInnings: team.minInfieldInnings,
     },
-    battingOrder: lineup.players,
+    players: lineup.players,
     innings: lineup.innings,
   });
   return c.html(await renderGame(c.env.DB, teamId, gameId));
@@ -82,17 +81,8 @@ gameRoutes.get("/:gameId", async (c) => {
 gameRoutes.post("/:gameId/finalize", async (c) => {
   const teamId = c.req.param("teamId")!;
   const gameId = c.req.param("gameId");
-  const plateAppearances = Number((await c.req.parseBody()).plateAppearances);
-  if (!Number.isInteger(plateAppearances) || plateAppearances < 0 || plateAppearances > MAX_PLATE_APPEARANCES) {
-    const error = `Plate appearances must be a whole number from 0 to ${MAX_PLATE_APPEARANCES}.`;
-    return c.html(await renderGame(c.env.DB, teamId, gameId, { error }));
-  }
-  const game = await getGame(c.env.DB, teamId, gameId);
-  const lastBatterId = lastBatterOfGame(
-    game.players.map((p) => p.id),
-    plateAppearances,
-  );
-  await finalizeGame(c.env.DB, teamId, gameId, { plateAppearances, lastBatterId });
+  await getGame(c.env.DB, teamId, gameId); // 404 if not this team's game
+  await finalizeGame(c.env.DB, teamId, gameId);
   return c.html(await renderGame(c.env.DB, teamId, gameId));
 });
 

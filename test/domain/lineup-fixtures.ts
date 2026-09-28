@@ -1,7 +1,7 @@
 import type { GameOptions, Lineup } from "../../src/domain/lineup";
 import type { Slot } from "../../src/domain/positions";
 
-export const defaultOptions: GameOptions = { innings: 6, alignmentMode: 9, pitcherInningLimit: 2, minDefensiveOuts: 6 };
+export const defaultOptions: GameOptions = { innings: 6, alignmentMode: 9, pitcherInningLimit: 2, minDefensiveOuts: 6, minInfieldInnings: 2 };
 
 /**
  * Builds a lineup from one row per player, e.g. `"Ava: P 1B BN LF"`.

@@ -22,19 +22,17 @@ export interface GameDetail {
   opponent: string | null;
   status: GameStatus;
   options: GameOptions;
-  /** Players present, in this game's batting order. */
+  /** Players present, in roster order. */
   players: { id: string; name: string }[];
   /** `innings[i][k]` is the slot of `players[k]` in inning i + 1. */
   innings: Slot[][];
-  plateAppearances: number | null;
-  lastBatterId: string | null;
 }
 
 export interface NewGame {
   date: string;
   opponent: string | null;
   options: GameOptions;
-  battingOrder: string[];
+  players: string[];
   innings: Slot[][];
 }
 
@@ -44,18 +42,29 @@ export async function saveGame(db: D1Database, teamId: string, game: NewGame): P
   const statements = [
     db
       .prepare(
-        `INSERT INTO game (id, team_id, game_date, opponent, innings, alignment_mode, pitcher_inning_limit, min_defensive_outs)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO game (id, team_id, game_date, opponent, innings, alignment_mode, pitcher_inning_limit,
+                           min_defensive_outs, min_infield_innings)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .bind(id, teamId, game.date, game.opponent, options.innings, options.alignmentMode, options.pitcherInningLimit, options.minDefensiveOuts),
-    ...game.battingOrder.map((playerId, k) =>
-      db.prepare(`INSERT INTO game_player (game_id, player_id, batting_position) VALUES (?, ?, ?)`).bind(id, playerId, k + 1),
+      .bind(
+        id,
+        teamId,
+        game.date,
+        game.opponent,
+        options.innings,
+        options.alignmentMode,
+        options.pitcherInningLimit,
+        options.minDefensiveOuts,
+        options.minInfieldInnings,
+      ),
+    ...game.players.map((playerId, k) =>
+      db.prepare(`INSERT INTO game_player (game_id, player_id, lineup_order) VALUES (?, ?, ?)`).bind(id, playerId, k + 1),
     ),
     ...game.innings.flatMap((inning, i) =>
       inning.map((slot, k) =>
         db
           .prepare(`INSERT INTO game_assignment (game_id, player_id, inning, slot) VALUES (?, ?, ?, ?)`)
-          .bind(id, game.battingOrder[k], i + 1, slot),
+          .bind(id, game.players[k], i + 1, slot),
       ),
     ),
   ];
@@ -86,8 +95,7 @@ interface GameRow {
   alignmentMode: AlignmentMode;
   pitcherInningLimit: 1 | 2;
   minDefensiveOuts: number;
-  plateAppearances: number | null;
-  lastBatterId: string | null;
+  minInfieldInnings: number;
 }
 
 /** Loads a game, or throws TeamAccessError if it isn't one of this team's games. */
@@ -97,7 +105,7 @@ export async function getGame(db: D1Database, teamId: string, gameId: string): P
       .prepare(
         `SELECT id, game_date AS date, opponent, status, innings, alignment_mode AS alignmentMode,
                 pitcher_inning_limit AS pitcherInningLimit, min_defensive_outs AS minDefensiveOuts,
-                plate_appearances AS plateAppearances, last_batter_player_id AS lastBatterId
+                min_infield_innings AS minInfieldInnings
            FROM game WHERE id = ? AND team_id = ?`,
       )
       .bind(gameId, teamId),
@@ -106,7 +114,7 @@ export async function getGame(db: D1Database, teamId: string, gameId: string): P
         `SELECT p.id, p.name
            FROM game_player gp JOIN player p ON p.id = gp.player_id
           WHERE gp.game_id = ? AND p.team_id = ?
-          ORDER BY gp.batting_position`,
+          ORDER BY gp.lineup_order`,
       )
       .bind(gameId, teamId),
     db
@@ -136,35 +144,24 @@ export async function getGame(db: D1Database, teamId: string, gameId: string): P
       alignmentMode: row.alignmentMode,
       pitcherInningLimit: row.pitcherInningLimit,
       minDefensiveOuts: row.minDefensiveOuts,
+      minInfieldInnings: row.minInfieldInnings,
     },
     players,
     innings,
-    plateAppearances: row.plateAppearances,
-    lastBatterId: row.lastBatterId,
   };
 }
 
-export async function finalizeGame(
-  db: D1Database,
-  teamId: string,
-  gameId: string,
-  result: { plateAppearances: number; lastBatterId: string | null },
-): Promise<void> {
+/** Marks a game as played, so it counts toward season stats and SR-3. */
+export async function finalizeGame(db: D1Database, teamId: string, gameId: string): Promise<void> {
   await db
-    .prepare(
-      `UPDATE game SET status = 'final', plate_appearances = ?, last_batter_player_id = ?, finalized_at = datetime('now')
-        WHERE id = ? AND team_id = ?`,
-    )
-    .bind(result.plateAppearances, result.lastBatterId, gameId, teamId)
+    .prepare(`UPDATE game SET status = 'final', finalized_at = datetime('now') WHERE id = ? AND team_id = ?`)
+    .bind(gameId, teamId)
     .run();
 }
 
 export async function reopenGame(db: D1Database, teamId: string, gameId: string): Promise<void> {
   await db
-    .prepare(
-      `UPDATE game SET status = 'planned', plate_appearances = NULL, last_batter_player_id = NULL, finalized_at = NULL
-        WHERE id = ? AND team_id = ?`,
-    )
+    .prepare(`UPDATE game SET status = 'planned', finalized_at = NULL WHERE id = ? AND team_id = ?`)
     .bind(gameId, teamId)
     .run();
 }
@@ -173,35 +170,16 @@ export async function deleteGame(db: D1Database, teamId: string, gameId: string)
   await db.prepare(`DELETE FROM game WHERE id = ? AND team_id = ?`).bind(gameId, teamId).run();
 }
 
-/**
- * The batting-order pointer (BO-3, BO-6): the last player who batted in the
- * most recent finalized game in which anyone batted.
- */
-export async function lastBatterPointer(db: D1Database, teamId: string): Promise<string | null> {
-  const row = await db
-    .prepare(
-      `SELECT last_batter_player_id AS id FROM game
-        WHERE team_id = ? AND status = 'final' AND last_batter_player_id IS NOT NULL
-        ORDER BY game_date DESC, finalized_at DESC
-        LIMIT 1`,
-    )
-    .bind(teamId)
-    .first<{ id: string }>();
-  return row?.id ?? null;
-}
-
 /** Finalized games as records for season totals. */
 export async function finalGameRecords(db: D1Database, teamId: string): Promise<GameRecord[]> {
   const [gamesResult, playersResult, slotsResult] = await db.batch([
-    db
-      .prepare(`SELECT id, innings, plate_appearances AS plateAppearances FROM game WHERE team_id = ? AND status = 'final'`)
-      .bind(teamId),
+    db.prepare(`SELECT id, innings FROM game WHERE team_id = ? AND status = 'final'`).bind(teamId),
     db
       .prepare(
         `SELECT gp.game_id AS gameId, gp.player_id AS playerId
            FROM game_player gp JOIN game g ON g.id = gp.game_id
           WHERE g.team_id = ? AND g.status = 'final'
-          ORDER BY gp.game_id, gp.batting_position`,
+          ORDER BY gp.game_id, gp.lineup_order`,
       )
       .bind(teamId),
     db
@@ -214,22 +192,22 @@ export async function finalGameRecords(db: D1Database, teamId: string): Promise<
   ]);
 
   const records = new Map<string, GameRecord & { index: Map<string, number> }>();
-  for (const g of gamesResult.results as { id: string; innings: number; plateAppearances: number | null }[]) {
-    records.set(g.id, { battingOrder: [], innings: Array.from({ length: g.innings }, () => []), plateAppearances: g.plateAppearances, index: new Map() });
+  for (const g of gamesResult.results as { id: string; innings: number }[]) {
+    records.set(g.id, { players: [], innings: Array.from({ length: g.innings }, () => []), index: new Map() });
   }
   for (const { gameId, playerId } of playersResult.results as { gameId: string; playerId: string }[]) {
     const record = records.get(gameId);
     if (!record) continue;
-    record.index.set(playerId, record.battingOrder.length);
-    record.battingOrder.push(playerId);
+    record.index.set(playerId, record.players.length);
+    record.players.push(playerId);
   }
   for (const record of records.values()) {
-    for (const inning of record.innings) inning.push(...new Array<Slot>(record.battingOrder.length).fill("BN"));
+    for (const inning of record.innings) inning.push(...new Array<Slot>(record.players.length).fill("BN"));
   }
   for (const { gameId, playerId, inning, slot } of slotsResult.results as { gameId: string; playerId: string; inning: number; slot: Slot }[]) {
     const record = records.get(gameId);
     const k = record?.index.get(playerId);
     if (record && k !== undefined) record.innings[inning - 1][k] = slot;
   }
-  return [...records.values()].map(({ battingOrder, innings, plateAppearances }) => ({ battingOrder, innings, plateAppearances }));
+  return [...records.values()].map(({ players, innings }) => ({ players, innings }));
 }

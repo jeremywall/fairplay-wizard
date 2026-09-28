@@ -69,7 +69,6 @@ export function seasonStats(roster: Player[], totals: Map<string, SeasonTotals>)
             <th class="${head}" scope="col" title="Innings pitched">P</th>
             <th class="${head}" scope="col" title="Innings caught">C</th>
             <th class="${head}" scope="col" title="Different positions played">Pos</th>
-            <th class="${head}" scope="col" title="Plate appearances">PA</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
@@ -85,7 +84,6 @@ export function seasonStats(roster: Player[], totals: Map<string, SeasonTotals>)
               <td class="${cell}">${t?.pitcher ?? 0}</td>
               <td class="${cell}">${t?.catcher ?? 0}</td>
               <td class="${cell}">${t ? Object.keys(t.positions).length : 0}</td>
-              <td class="${cell}">${t?.plateAppearances ?? 0}</td>
             </tr>`;
           })}
         </tbody>
@@ -100,10 +98,8 @@ export function gamePage(
   lineup: Lineup,
   violations: Violation[],
   report: FairnessReport,
-  opts: { error?: string } = {},
 ) {
   const base = `/app/teams/${teamId}/games/${game.id}`;
-  const lastBatter = game.players.find((p) => p.id === game.lastBatterId);
   return html`<section class="space-y-6">
     <div>
       ${backToTeam(teamId)}
@@ -113,24 +109,15 @@ export function gamePage(
 
     ${game.status === "final"
       ? html`<div class="space-y-2 rounded-lg bg-white p-4 shadow-sm">
-          <p>${game.plateAppearances} plate appearances.
-            ${lastBatter
-              ? html`<span class="font-medium">${lastBatter.name}</span> batted last, so the next game starts with the batter after ${lastBatter.name}.`
-              : html`Nobody batted, so this game doesn't move the batting order.`}</p>
+          <p>This game is final and counts toward season stats.</p>
           <button class="${secondaryButton}" hx-post="${base}/reopen" hx-target="#main" hx-swap="innerHTML"
-            hx-confirm="Reopen this game? It will stop counting toward season stats and the batting order until you finalize it again.">Reopen game</button>
+            hx-confirm="Reopen this game? It will stop counting toward season stats until you finalize it again.">Reopen game</button>
         </div>`
-      : html`<form class="space-y-3 rounded-lg bg-white p-4 shadow-sm" hx-post="${base}/finalize" hx-target="#main" hx-swap="innerHTML">
+      : html`<div class="space-y-3 rounded-lg bg-white p-4 shadow-sm">
           <h3 class="font-semibold">Finalize after the game</h3>
-          <p class="text-sm text-slate-600">Enter how many times your team came to the plate in total (every batter, including outs). This sets where the batting order picks up next game and adds this game to season stats.</p>
-          ${opts.error ? html`<p class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">${opts.error}</p>` : ""}
-          <div class="flex flex-wrap items-end gap-3">
-            <label class="text-sm font-medium">Plate appearances
-              <input class="mt-1 block min-h-11 w-28 rounded-md border border-slate-300 px-3 py-2" type="number" name="plateAppearances" min="0" max="200" inputmode="numeric" required>
-            </label>
-            <button class="${primaryButton}" type="submit">Finalize game</button>
-          </div>
-        </form>`}
+          <p class="text-sm text-slate-600">Finalizing adds this game to season stats, which the generator uses to even out playing time across the season.</p>
+          <button class="${primaryButton}" hx-post="${base}/finalize" hx-target="#main" hx-swap="innerHTML">Finalize game</button>
+        </div>`}
 
     ${lineupGrid(lineup)}
     ${ruleCheckPanel(violations, report)}

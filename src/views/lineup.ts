@@ -93,15 +93,14 @@ export function lineupDescription(lineup: Lineup) {
   return `${players.length} players · ${fieldedPositions(players.length, options.alignmentMode).length} fielders · ${options.innings} innings · pitchers up to ${options.pitcherInningLimit} inning${options.pitcherInningLimit === 1 ? "" : "s"}`;
 }
 
-/** Position by inning, one row per player in batting order. */
+/** Position by inning, one row per player. */
 export function lineupGrid(lineup: Lineup) {
   const inningNumbers = lineup.innings.map((_, i) => i + 1);
   return html`<div class="overflow-x-auto rounded-md border border-slate-200 bg-white">
     <table class="min-w-full text-sm">
-      <caption class="px-3 py-2 text-left font-semibold">Batting order and positions</caption>
+      <caption class="px-3 py-2 text-left font-semibold">Positions by inning</caption>
       <thead class="bg-slate-50 text-slate-600">
         <tr>
-          <th class="px-2 py-2 text-right font-medium" scope="col"><span class="sr-only">Batting order</span>#</th>
           <th class="sticky left-0 bg-slate-50 px-3 py-2 text-left font-medium" scope="col">Player</th>
           ${inningNumbers.map((n) => html`<th class="px-2 py-2 text-center font-medium" scope="col">${n}</th>`)}
         </tr>
@@ -109,7 +108,6 @@ export function lineupGrid(lineup: Lineup) {
       <tbody class="divide-y divide-slate-100">
         ${lineup.players.map(
           (player, p) => html`<tr>
-            <td class="px-2 py-2 text-right tabular-nums text-slate-500">${p + 1}</td>
             <th class="sticky left-0 whitespace-nowrap bg-white px-3 py-2 text-left font-medium" scope="row">${player.name}</th>
             ${lineup.innings.map((inning) => slotCell(inning[p]))}
           </tr>`,
@@ -174,10 +172,7 @@ export function summaryTable(lineup: Lineup) {
   </div>`;
 }
 
-/**
- * A freshly generated lineup, with Regenerate and Save. `lineup.players` is in
- * batting order.
- */
+/** A freshly generated lineup, with Regenerate and Save. */
 export function lineupResult(teamId: string, lineup: Lineup, violations: Violation[], report: FairnessReport, today: string) {
   const { options, players } = lineup;
   const optionInputs = html`${players.map((p) => html`<input type="hidden" name="player" value="${p.id}">`)}
@@ -204,7 +199,7 @@ export function lineupResult(teamId: string, lineup: Lineup, violations: Violati
 
     <form class="space-y-3 rounded-lg bg-white p-4 shadow-sm" hx-post="/app/teams/${teamId}/games" hx-target="#main" hx-swap="innerHTML">
       <h3 class="font-semibold">Save this lineup</h3>
-      <p class="text-sm text-slate-600">Saved games appear on the team page. After the game, finalize it so it counts toward season stats and the batting order carries over.</p>
+      <p class="text-sm text-slate-600">Saved games appear on the team page. After the game, finalize it so it counts toward season stats.</p>
       <input type="hidden" name="lineup" value="${saved}">
       <input type="hidden" name="innings" value="${options.innings}">
       <input type="hidden" name="pitcherInningLimit" value="${options.pitcherInningLimit}">

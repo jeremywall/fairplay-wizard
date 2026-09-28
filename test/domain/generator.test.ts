@@ -55,10 +55,11 @@ function obviouslyInfeasible(n: number, options: GameOptions): boolean {
   const outfieldSlots = (positions.length * options.innings) - infieldSlots;
   const maxBench = Math.ceil(((n - positions.length) * options.innings) / n);
   const minField = options.innings - maxBench;
+  const minInfield = Math.max(1, options.minInfieldInnings); // HR-2 and HR-6
   return (
     Math.ceil(options.innings / options.pitcherInningLimit) > n ||
-    minField < 3 ||
-    infieldSlots < 2 * n ||
+    minField < minInfield + 1 ||
+    infieldSlots < minInfield * n ||
     outfieldSlots < n
   );
 }
@@ -70,7 +71,9 @@ describe("generateLineup", () => {
       for (const pitcherInningLimit of [1, 2] as const) {
         const modes: AlignmentMode[] = n >= 10 ? [9, 10] : [9];
         for (const alignmentMode of modes) {
-          configs.push({ n, options: { innings, alignmentMode, pitcherInningLimit, minDefensiveOuts: 6 } });
+          for (const minInfieldInnings of [1, 2]) {
+            configs.push({ n, options: { innings, alignmentMode, pitcherInningLimit, minDefensiveOuts: 6, minInfieldInnings } });
+          }
         }
       }
     }
@@ -91,7 +94,7 @@ describe("generateLineup", () => {
   });
 
   it("still returns a complete lineup, with violations reported, when the rules can't all be met", () => {
-    const options: GameOptions = { innings: 9, alignmentMode: 9, pitcherInningLimit: 1, minDefensiveOuts: 6 };
+    const options: GameOptions = { innings: 9, alignmentMode: 9, pitcherInningLimit: 1, minDefensiveOuts: 6, minInfieldInnings: 2 };
     const { lineup, hardViolations } = generateLineup(players(7), options);
     expect(lineup.innings).toHaveLength(9);
     expect(hardViolations).toBeGreaterThan(0);
@@ -100,14 +103,14 @@ describe("generateLineup", () => {
   });
 
   it("produces different lineups on repeated runs with the same inputs", () => {
-    const options: GameOptions = { innings: 6, alignmentMode: 10, pitcherInningLimit: 2, minDefensiveOuts: 6 };
+    const options: GameOptions = { innings: 6, alignmentMode: 10, pitcherInningLimit: 2, minDefensiveOuts: 6, minInfieldInnings: 2 };
     const seen = new Set<string>();
     for (let run = 0; run < 10; run++) seen.add(JSON.stringify(generateLineup(players(11), options).lineup.innings));
     expect(seen.size).toBeGreaterThan(1);
   });
 
   it("rejects fewer than 7 players", () => {
-    const options: GameOptions = { innings: 6, alignmentMode: 9, pitcherInningLimit: 2, minDefensiveOuts: 6 };
+    const options: GameOptions = { innings: 6, alignmentMode: 9, pitcherInningLimit: 2, minDefensiveOuts: 6, minInfieldInnings: 2 };
     expect(() => generateLineup(players(6), options)).toThrow(RangeError);
   });
 });

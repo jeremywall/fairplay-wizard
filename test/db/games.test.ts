@@ -5,7 +5,6 @@ import {
   finalGameRecords,
   finalizeGame,
   getGame,
-  lastBatterPointer,
   listGames,
   type NewGame,
   reopenGame,
@@ -25,8 +24,8 @@ describe("game data access", () => {
     return {
       date,
       opponent: "Cubs",
-      options: { innings: 2, alignmentMode: 10, pitcherInningLimit: 2, minDefensiveOuts: 6 },
-      battingOrder: ids,
+      options: { innings: 2, alignmentMode: 10, pitcherInningLimit: 2, minDefensiveOuts: 6, minInfieldInnings: 1 },
+      players: ids,
       innings: [row, [...row].reverse()],
     };
   }
@@ -37,10 +36,11 @@ describe("game data access", () => {
     ids = (await listPlayers(env.DB, teamId)).map((p) => p.id);
   });
 
-  it("saves and loads a game", async () => {
+  it("saves and loads a game with the options it was planned with", async () => {
     const gameId = await saveGame(env.DB, teamId, newGame("2026-10-04"));
     const game = await getGame(env.DB, teamId, gameId);
-    expect(game).toMatchObject({ date: "2026-10-04", opponent: "Cubs", status: "planned", plateAppearances: null });
+    expect(game).toMatchObject({ date: "2026-10-04", opponent: "Cubs", status: "planned" });
+    expect(game.options.minInfieldInnings).toBe(1);
     expect(game.players.map((p) => p.name)).toEqual(["A", "B", "C", "D", "E", "F", "G"]);
     expect(game.innings[0]).toEqual(["P", "1B", "2B", "3B", "SS", "LC", "RC"]);
     expect(game.innings[1][0]).toBe("RC");
@@ -49,34 +49,23 @@ describe("game data access", () => {
     ]);
   });
 
-  it("uses the latest finalized game for the batting-order pointer", async () => {
-    const early = await saveGame(env.DB, teamId, newGame("2026-10-01"));
-    const late = await saveGame(env.DB, teamId, newGame("2026-10-08"));
-    expect(await lastBatterPointer(env.DB, teamId)).toBeNull();
-
-    await finalizeGame(env.DB, teamId, late, { plateAppearances: 10, lastBatterId: ids[2] });
-    await finalizeGame(env.DB, teamId, early, { plateAppearances: 5, lastBatterId: ids[4] });
-    expect(await lastBatterPointer(env.DB, teamId)).toBe(ids[2]);
-
-    await reopenGame(env.DB, teamId, late);
-    expect(await lastBatterPointer(env.DB, teamId)).toBe(ids[4]);
-    expect((await getGame(env.DB, teamId, late)).status).toBe("planned");
-  });
-
-  it("returns only finalized games as season records", async () => {
+  it("counts only finalized games as season records", async () => {
     await saveGame(env.DB, teamId, newGame("2026-10-01"));
     const final = await saveGame(env.DB, teamId, newGame("2026-10-08"));
-    await finalizeGame(env.DB, teamId, final, { plateAppearances: 9, lastBatterId: ids[1] });
+    await finalizeGame(env.DB, teamId, final);
     const records = await finalGameRecords(env.DB, teamId);
-    expect(records).toHaveLength(1);
-    expect(records[0]).toEqual({ battingOrder: ids, innings: newGame("x").innings, plateAppearances: 9 });
+    expect(records).toEqual([{ players: ids, innings: newGame("x").innings }]);
+
+    await reopenGame(env.DB, teamId, final);
+    expect((await getGame(env.DB, teamId, final)).status).toBe("planned");
+    expect(await finalGameRecords(env.DB, teamId)).toEqual([]);
   });
 
   it("keeps games within their team", async () => {
     const gameId = await saveGame(env.DB, teamId, newGame("2026-10-04"));
     const otherTeam = await createTeam(env.DB, await insertCoach(), "Cubs");
     await expect(getGame(env.DB, otherTeam, gameId)).rejects.toBeInstanceOf(TeamAccessError);
-    await finalizeGame(env.DB, otherTeam, gameId, { plateAppearances: 3, lastBatterId: null });
+    await finalizeGame(env.DB, otherTeam, gameId);
     await deleteGame(env.DB, otherTeam, gameId);
     expect((await getGame(env.DB, teamId, gameId)).status).toBe("planned");
   });

@@ -178,7 +178,7 @@ function buildAttempt(playerCount: number, options: GameOptions, bias: SeasonBia
         if (j < 3 && !bench[j].has(p)) earlyField++;
       }
       const s = state[p];
-      const infieldNeed = Math.max(0, 2 - s.infield - futurePitch); // HR-6
+      const infieldNeed = Math.max(0, options.minInfieldInnings - s.infield - futurePitch); // HR-6
       const needsOutfield = s.outfield === 0; // HR-2
       const needsEarlyInfield = i < 3 && s.infield === 0; // HR-5
       const willPitch = pitchers.includes(p);

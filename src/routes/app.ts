@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
-import { addPlayer, listPlayers, movePlayer, removePlayer } from "../db/players";
+import { addPlayer, listPlayers, removePlayer } from "../db/players";
 import { createTeam, getTeam, listTeamsForCoach, requireTeamAccess, updateTeamSettings } from "../db/teams";
 import { requireUser } from "../middleware/session";
 import { gameRoutes } from "./games";
@@ -52,6 +52,7 @@ appRoutes.post("/teams/:teamId/settings", async (c) => {
   const form = await c.req.parseBody();
   const inningsPerGame = Number(form.inningsPerGame);
   const minDefensiveOuts = Number(form.minDefensiveOuts);
+  const minInfieldInnings = Number(form.minInfieldInnings);
   const alignmentMode = Number(form.alignmentMode);
   const team = await getTeam(c.env.DB, teamId);
 
@@ -60,12 +61,14 @@ appRoutes.post("/teams/:teamId/settings", async (c) => {
     error = "Innings per game must be a whole number from 3 to 9.";
   } else if (!Number.isInteger(minDefensiveOuts) || minDefensiveOuts < 0 || minDefensiveOuts > inningsPerGame * 3) {
     error = `Minimum defensive outs must be a whole number from 0 to ${inningsPerGame * 3}.`;
+  } else if (!Number.isInteger(minInfieldInnings) || minInfieldInnings < 0 || minInfieldInnings > inningsPerGame) {
+    error = `Minimum infield innings must be a whole number from 0 to ${inningsPerGame}.`;
   } else if (alignmentMode !== 9 && alignmentMode !== 10) {
     error = "Choose a 9-player or 10-player defense.";
   }
-  if (error) return c.html(teamSettings({ ...team, inningsPerGame, minDefensiveOuts }, { error }));
+  if (error) return c.html(teamSettings({ ...team, inningsPerGame, minDefensiveOuts, minInfieldInnings }, { error }));
 
-  const settings = { inningsPerGame, minDefensiveOuts, alignmentMode: alignmentMode as 9 | 10 };
+  const settings = { inningsPerGame, minDefensiveOuts, minInfieldInnings, alignmentMode: alignmentMode as 9 | 10 };
   await updateTeamSettings(c.env.DB, teamId, settings);
   return c.html(teamSettings({ ...team, ...settings }, { saved: true }));
 });
@@ -82,15 +85,6 @@ appRoutes.post("/teams/:teamId/players", async (c) => {
   if (!error) await addPlayer(c.env.DB, teamId, { name, jerseyNumber });
 
   return c.html(roster(teamId, await listPlayers(c.env.DB, teamId), { error }));
-});
-
-appRoutes.post("/teams/:teamId/players/:playerId/move", async (c) => {
-  const teamId = c.req.param("teamId");
-  const direction = c.req.query("direction");
-  if (direction === "up" || direction === "down") {
-    await movePlayer(c.env.DB, teamId, c.req.param("playerId"), direction);
-  }
-  return c.html(roster(teamId, await listPlayers(c.env.DB, teamId)));
 });
 
 appRoutes.delete("/teams/:teamId/players/:playerId", async (c) => {

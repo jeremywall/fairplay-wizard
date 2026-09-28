@@ -66,12 +66,16 @@ describe("HR-5: infield within the first 3 innings", () => {
   });
 });
 
-describe("HR-6: at least 2 infield innings", () => {
+describe("HR-6: minimum infield innings", () => {
   it("counts pitcher and catcher as infield", () => {
     expect(messages("HR-6", ["Ava: P C LF RF"])).toEqual([]);
   });
   it("flags one infield inning", () => {
     expect(messages("HR-6", ["Ava: P LF RF BN"])).toEqual(["Ava has 1 infield inning (minimum 2)."]);
+  });
+  it("uses the team's minimum", () => {
+    expect(messages("HR-6", ["Ava: P LF RF BN"], { minInfieldInnings: 1 })).toEqual([]);
+    expect(messages("HR-6", ["Ava: LF RF CF"], { minInfieldInnings: 0 })).toEqual([]);
   });
 });
 

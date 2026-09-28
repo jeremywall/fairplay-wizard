@@ -12,6 +12,8 @@ export interface GameOptions {
   pitcherInningLimit: 1 | 2;
   /** HR-8: team setting, enforced in whole innings. */
   minDefensiveOuts: number;
+  /** HR-6: team setting. */
+  minInfieldInnings: number;
 }
 
 /** A full-game fielding lineup: `innings[i][p]` is player p's slot in inning i + 1. */

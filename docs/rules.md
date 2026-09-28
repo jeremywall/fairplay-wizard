@@ -7,13 +7,13 @@ The hard and soft rules come from the earlier planner project ([baseball-softbal
 ## 1. Coach workflow
 
 1. **Before the game:** check off who is present, and confirm the game options (§3).
-2. **Generate:** tap **Generate lineup**. The generator (§6) produces the whole game at once: fielding positions for every inning plus the batting order (§5).
+2. **Generate:** tap **Generate lineup**. The generator (§6) produces the whole game at once: fielding positions for every inning.
 3. **Review:** the coach sees the lineup grid, a player summary, a fairness readout (§7), and a rule check listing any hard-rule violations and soft-rule notices.
 4. **Adjust if needed:**
    - **Regenerate** produces a different random lineup with the same attendance and options. This is the fast path.
    - **Manual edits** let the coach change a player's position in a given inning (for example, by swapping two players). After every edit, the rule check re-runs and shows any violations. A hard-rule violation is shown prominently as an error, but it **does not block** saving. The coach has the final say.
 5. **Save** the lineup as a game (date and optional opponent). Saved games are listed on the team page.
-6. **Finalize** the game after it's played by entering the team's total plate appearances. Finalizing sets the batting-order pointer (§5) and makes the game count toward season stats (§9) and SR-3. A finalized game can be **reopened** (it stops counting until finalized again), and a planned game can be deleted.
+6. **Finalize** the game after it's played. Finalizing makes the game count toward season stats (§9) and SR-3. A finalized game can be **reopened** (it stops counting until finalized again), and a planned game can be deleted.
 
 ## 2. Positions
 
@@ -61,8 +61,11 @@ Positions are defined in one config module. Everything else (rules, generator, v
 | Alignment mode | Team setting (default 10) | 9-player or 10-player defense, used with 10 or more present (§2). |
 | Pitcher inning limit | Per game | 1 or 2 innings per pitcher (HR-9). |
 | Minimum defensive outs | Team setting (default 6) | HR-8 threshold. The generator works in whole innings, so the minimum in innings is `ceil(minDefensiveOuts / 3)`. |
+| Minimum infield innings | Team setting (default 2) | HR-6 threshold, 0 up to the innings per game. Short games usually need 1: with 10 players over 3 innings there are only 18 infield slots, not the 20 that a minimum of 2 needs. |
 
-With very short games or unusual attendance, some hard rules may be impossible to satisfy together, for example in a 3-inning game with players on the bench: HR-2 and HR-6 together need 3 field innings from every player, so nobody could sit. The generator then returns its best lineup, and the rule check lists the rules it couldn't meet. It never fails silently.
+Each saved game stores the team settings it was planned with, so changing a setting later doesn't change past games' rule checks.
+
+With very short games or unusual attendance, some hard rules may be impossible to satisfy together, for example in a 3-inning game with players on the bench and a minimum of 2 infield innings: HR-2 and HR-6 together need 3 field innings from every player, so nobody could sit. The generator then returns its best lineup, and the rule check lists the rules it couldn't meet. It never fails silently.
 
 ## 4. Fielding rules
 
@@ -77,7 +80,7 @@ A valid lineup satisfies every hard rule. Violations are shown as errors in the 
 | HR-3 | No player plays outfield for **3 consecutive innings**. Bench innings are skipped when counting "consecutive", so they don't break a streak: OF → OF → BN → OF counts as 3 consecutive outfield innings and is not allowed. |
 | HR-4 | No player is benched for a second inning until **every present player has been benched at least once** in that game. Bench turns go round-robin. |
 | HR-5 | Every present player plays **at least 1 infield inning within the first 3 innings**. |
-| HR-6 | Every present player plays **at least 2 infield innings** each game. |
+| HR-6 | Every present player plays at least the team's **minimum infield innings** each game (team setting, default 2; see §3). |
 | HR-7 | A game needs **at least 7 present players**. Fielded positions follow the attendance table in §2. |
 | HR-8 | Every present player plays in the field (not bench) for at least the team's **minimum defensive outs**, counted in whole innings as `ceil(minDefensiveOuts / 3)`. The default is 6 outs, or 2 innings. |
 | HR-9 | A player pitches **at most 1 or 2 innings** per game, depending on the game's pitcher inning limit option. |
@@ -98,16 +101,7 @@ Soft rules are preferences the generator optimizes for. Violations appear as inf
 
 ## 5. Batting order
 
-| # | Rule |
-|---|---|
-| BO-1 | **Continuous batting order:** every present player bats, whether or not they're in the field that inning. |
-| BO-2 | The team has a **fixed batting order** (the roster order, which the coach can rearrange). It does **not** restart at the top each game. |
-| BO-3 | Each game **resumes with the next batter after the last player who actually batted** in the previous finalized game. |
-| BO-4 | **Absent players are skipped** for that game. The pointer follows the last player who actually batted, so the next game starts after that player in the fixed order, skipping anyone absent. |
-| BO-5 | If the last batter has since been removed from the roster, the next game starts from the top of the order. |
-| BO-6 | Each finalized game stores its plate appearances and last batter (the batter who took the final plate appearance, counting through that game's batting order). The pointer for the next game is the last batter of the **most recent finalized game by date** in which anyone batted, so reopening or deleting a game automatically restores the previous pointer. |
-
-Implemented in `src/domain/batting-order.ts`.
+Not tracked. The app plans fielding only; the coach manages the batting order outside the app.
 
 ## 6. Generator
 
@@ -137,4 +131,4 @@ The **player summary** table shows each player's innings at Pitcher, Catcher, In
 
 ## 9. Season stats
 
-Shown on the team page for active players, from finalized games only: games played, field innings, bench innings, infield innings (including pitcher and catcher), outfield innings, innings pitched, innings caught, number of different positions played, and plate appearances. Plate appearances per player come from the team total: everyone gets one per time through the order, and the top of that game's order gets the extras.
+Shown on the team page for active players, from finalized games only: games played, field innings, bench innings, infield innings (including pitcher and catcher), outfield innings, innings pitched, innings caught, and number of different positions played.

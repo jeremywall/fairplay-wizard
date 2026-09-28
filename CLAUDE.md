@@ -4,11 +4,11 @@ This file gives Claude Code guidance for working in this repository.
 
 ## Project overview
 
-**Fairplay Wizard** is a web app that helps youth baseball/softball coaches make sure every player gets fair playing time. It generates inning-by-inning fielding rotations and a continuous batting order that follow Little League–style fairness rules, and it tracks fairness across a season.
+**Fairplay Wizard** is a web app that helps youth baseball/softball coaches make sure every player gets fair playing time. It generates inning-by-inning fielding rotations that follow Little League–style fairness rules, and it tracks fairness across a season. **Batting order is not tracked**; coaches manage it outside the app.
 
 - **Users:** coaches (head and assistant) only. There are no parent, player, or league-admin roles.
 - **Sport:** baseball first, with softball as a close variant. Rules follow Little League and local-league conventions, **not** MLB rules (see Domain rules).
-- **Status:** early development. Sign-up/sign-in, teams, game settings, and roster + batting-order management work end to end, and the batting-order carry-over logic is in `src/domain`. The lineup generator works (attendance + options → lineup grid in batting order, player summary, fairness readout, rule check, Regenerate). Lineups can be saved as games, finalized with plate appearances (which sets the batting-order carry-over), reopened or deleted; the team page shows games and season stats, and the generator uses season history (SR-3). Not built yet: manual edits to a lineup.
+- **Status:** early development. Sign-up/sign-in, teams, game settings and roster management work end to end. The lineup generator works (attendance + options → lineup grid, player summary, fairness readout, rule check, Regenerate). Lineups can be saved as games, finalized, reopened or deleted; the team page shows games and season stats, and the generator uses season history (SR-3). Not built yet: manual edits to a lineup.
 
 ## Tech stack (all Cloudflare)
 
@@ -31,7 +31,7 @@ This file gives Claude Code guidance for working in this repository.
 - **Authorization is enforced in code, not the database.** D1 has no Row Level Security. Every query against team data must be scoped to a team that the current coach belongs to. Put this in one data-access layer (for example, `requireTeamAccess(coachId, teamId)`) rather than scattering checks through handlers, and cover it with tests.
 - **Escape all user input in HTML.** Player and team names are rendered on the server. Use Hono's auto-escaping `html` template or JSX, and never concatenate raw strings into markup.
 - Always use D1 **prepared statements with bound parameters** (`db.prepare(sql).bind(...)`). Never interpolate values into SQL.
-- Put domain logic (rotation generation, batting-order pointer, fairness stats) in **pure TypeScript modules** with no I/O, kept separate from routes and data access, so it can be unit tested in isolation.
+- Put domain logic (rotation generation, rule checks, fairness and season stats) in **pure TypeScript modules** with no I/O, kept separate from routes and data access, so it can be unit tested in isolation.
 
 ## Repository layout
 
@@ -47,7 +47,7 @@ This file gives Claude Code guidance for working in this repository.
   /auth                   # Better Auth config
   /middleware             # Session loading/requireUser, same-origin CSRF check
   /db                     # Data-access layer (team-scoped queries)
-  /domain                 # Pure logic: positions, rules/ (one module per rule), generator, batting order, fairness
+  /domain                 # Pure logic: positions, rules/ (one module per rule), generator, fairness, season totals
   /styles/input.css       # Tailwind entry
 /docs/rules.md            # Fairplay rules: source of truth for the domain logic
 /migrations               # D1 SQL migrations (wrangler d1 migrations)
@@ -84,25 +84,24 @@ npx wrangler secret put BETTER_AUTH_SECRET          # Rotate the production auth
 
 ## Domain rules
 
-**[`docs/rules.md`](docs/rules.md) is the source of truth for the fairplay rules.** Read it before changing anything in `src/domain`, the generator, the rule check, or the lineup views. When a rule changes, update `docs/rules.md` first, then the rule module and its tests. Keep rule ids (HR-n, SR-n, BO-n) in code, tests and UI messages so they can be traced back to the doc.
+**[`docs/rules.md`](docs/rules.md) is the source of truth for the fairplay rules.** Read it before changing anything in `src/domain`, the generator, the rule check, or the lineup views. When a rule changes, update `docs/rules.md` first, then the rule module and its tests. Keep rule ids (HR-n, SR-n) in code, tests and UI messages so they can be traced back to the doc.
 
 ### Core features (MVP)
-1. **Team & roster management:** a coach creates a team, adds and removes players, and sets the fixed batting order. *(Done.)*
-2. **Lineup generator:** from attendance and game options, generates the fielding position for every inning and the batting order. Regenerate gives a different random lineup, and the coach can also edit it by hand. The rule check shows violations but never blocks saving.
-3. **Season fairness stats:** per player: innings played, innings sat, infield vs. outfield innings, positions played, innings pitched/caught, and plate appearances.
+1. **Team & roster management:** a coach creates a team and adds and removes players. *(Done.)*
+2. **Lineup generator:** from attendance and game options, generates the fielding position for every inning. Regenerate gives a different random lineup, and the coach can also edit it by hand. The rule check shows violations but never blocks saving.
+3. **Season fairness stats:** per player: innings played, innings sat, infield vs. outfield innings, positions played, and innings pitched/caught.
 
 **Out of scope for now:** pitch counts and rest days (pitching rules are per-game innings only), live in-game substitution tracking, and parent or league-admin access.
 
 ### Rules at a glance (details and exact wording in `docs/rules.md`)
 - **Positions** depend on attendance: at least 7 players are needed, with 2 outfielders (LC/RC) at 7–8 present, 3 at 9, and 3 or 4 at 10+ depending on the team's 9- or 10-player defense setting. **Pitcher and catcher count as infield.**
 - **Hard rules** (errors):
-  - infield/outfield minimums: HR-2, HR-5, HR-6
+  - infield/outfield minimums: HR-2, HR-5, and HR-6 (minimum infield innings from the team setting)
   - no 3 straight outfield innings: HR-3
   - round-robin bench, with no consecutive bench innings: HR-4, HR-11
   - minimum defensive outs from the team setting: HR-8
   - pitching limits per game: HR-1, HR-9, HR-10
 - **Soft rules** (notices): SR-1 position variety, SR-2 infield/outfield balance, and SR-3 season-to-date tie-breaking.
-- **Batting order** (BO-1…BO-6): continuous, fixed order that carries over between games, skipping absent players.
 - **Generator:** randomized, and must never trade away hard-rule compliance for variety. When the hard rules can't all be met, it returns its best lineup and lists the unmet rules.
 
 ## Conventions

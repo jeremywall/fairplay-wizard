@@ -2,27 +2,20 @@ import { describe, expect, it } from "vitest";
 import { generateLineup, seasonBias } from "../../src/domain/generator";
 import type { GameOptions } from "../../src/domain/lineup";
 import { playerTotals, slotsOf } from "../../src/domain/lineup";
-import { emptyTotals, plateAppearancesByPlayer, type SeasonTotals, seasonTotals } from "../../src/domain/season";
+import { emptyTotals, type SeasonTotals, seasonTotals } from "../../src/domain/season";
 
 const players = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `p${i}`, name: `Player ${i + 1}` }));
 
-describe("plateAppearancesByPlayer", () => {
-  it("gives the top of the order the extra turns", () => {
-    expect(Object.fromEntries(plateAppearancesByPlayer(["a", "b", "c"], 7))).toEqual({ a: 3, b: 2, c: 2 });
-    expect(Object.fromEntries(plateAppearancesByPlayer(["a", "b", "c"], 0))).toEqual({ a: 0, b: 0, c: 0 });
-  });
-});
-
 describe("seasonTotals", () => {
-  it("adds up innings, positions and plate appearances across games", () => {
+  it("adds up innings and positions across games", () => {
     const totals = seasonTotals([
-      { battingOrder: ["a", "b"], innings: [["P", "BN"], ["LF", "C"]], plateAppearances: 3 },
-      { battingOrder: ["b"], innings: [["SS"]], plateAppearances: null },
+      { players: ["a", "b"], innings: [["P", "BN"], ["LF", "C"]] },
+      { players: ["b"], innings: [["SS"]] },
     ]);
     expect(totals.get("a")).toEqual({
-      games: 1, field: 2, bench: 0, infield: 1, outfield: 1, pitcher: 1, catcher: 0, positions: { P: 1, LF: 1 }, plateAppearances: 2,
+      games: 1, field: 2, bench: 0, infield: 1, outfield: 1, pitcher: 1, catcher: 0, positions: { P: 1, LF: 1 },
     });
-    expect(totals.get("b")).toMatchObject({ games: 2, field: 2, bench: 1, catcher: 1, positions: { C: 1, SS: 1 }, plateAppearances: 1 });
+    expect(totals.get("b")).toMatchObject({ games: 2, field: 2, bench: 1, catcher: 1, positions: { C: 1, SS: 1 } });
   });
 });
 
@@ -39,7 +32,7 @@ describe("seasonBias", () => {
 });
 
 describe("generateLineup with season history (SR-3)", () => {
-  const options: GameOptions = { innings: 6, alignmentMode: 9, pitcherInningLimit: 2, minDefensiveOuts: 6 };
+  const options: GameOptions = { innings: 6, alignmentMode: 9, pitcherInningLimit: 2, minDefensiveOuts: 6, minInfieldInnings: 2 };
 
   it("benches players who have sat less this season", () => {
     // 10 players, 9 fielders, 6 innings: only 6 of the 10 sit each game.

@@ -61,6 +61,8 @@ export interface TeamDetails {
   minDefensiveOuts: number;
   /** Defense used when 10 or more players are present. */
   alignmentMode: AlignmentMode;
+  /** HR-6 minimum infield innings per player per game. */
+  minInfieldInnings: number;
 }
 
 /** Returns team details. Call requireTeamAccess first. */
@@ -68,7 +70,7 @@ export async function getTeam(db: D1Database, teamId: string): Promise<TeamDetai
   const team = await db
     .prepare(
       `SELECT id, name, innings_per_game AS inningsPerGame, min_defensive_outs AS minDefensiveOuts,
-              alignment_mode AS alignmentMode
+              alignment_mode AS alignmentMode, min_infield_innings AS minInfieldInnings
          FROM team WHERE id = ?`,
     )
     .bind(teamId)
@@ -81,10 +83,13 @@ export async function getTeam(db: D1Database, teamId: string): Promise<TeamDetai
 export async function updateTeamSettings(
   db: D1Database,
   teamId: string,
-  settings: { inningsPerGame: number; minDefensiveOuts: number; alignmentMode: AlignmentMode },
+  settings: { inningsPerGame: number; minDefensiveOuts: number; minInfieldInnings: number; alignmentMode: AlignmentMode },
 ): Promise<void> {
   await db
-    .prepare(`UPDATE team SET innings_per_game = ?, min_defensive_outs = ?, alignment_mode = ? WHERE id = ?`)
-    .bind(settings.inningsPerGame, settings.minDefensiveOuts, settings.alignmentMode, teamId)
+    .prepare(
+      `UPDATE team SET innings_per_game = ?, min_defensive_outs = ?, min_infield_innings = ?, alignment_mode = ?
+        WHERE id = ?`,
+    )
+    .bind(settings.inningsPerGame, settings.minDefensiveOuts, settings.minInfieldInnings, settings.alignmentMode, teamId)
     .run();
 }
