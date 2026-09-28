@@ -40,6 +40,7 @@ This file gives Claude Code guidance for working in this repository.
   index.html              # SPA shell (loads HTMX + built CSS)
   /js/app.js              # Small UI glue (lineup setup form)
   /js/htmx.min.js, /css   # Build output, gitignored
+/.github/workflows        # CI and deploy (ci-deploy.yml)
 /src
   index.ts                # Worker entry: Hono app, middleware, route mounting
   /routes                 # HTMX route handlers returning HTML partials (app, auth, lineup, games)
@@ -71,8 +72,8 @@ npm run build                         # Copy htmx into public/js and build Tailw
 npm run watch:css                     # Rebuild CSS on change
 
 npx wrangler d1 migrations create fairplay <name>   # New SQL migration
-npm run db:migrate:remote                           # Apply migrations to production D1
-npm run deploy                                      # Deploy the Worker
+npm run db:migrate:remote                           # Manual fallback: apply migrations to production D1
+npm run deploy                                      # Manual fallback: deploy the Worker
 npx wrangler secret put BETTER_AUTH_SECRET          # Rotate the production auth secret (signs everyone out)
 ```
 
@@ -80,6 +81,7 @@ npx wrangler secret put BETTER_AUTH_SECRET          # Rotate the production auth
 - Better Auth's tables are in `migrations/0001_better_auth.sql`. If Better Auth options or plugins change its schema, run `node scripts/generate-auth-schema.mjs` and write the difference as a new migration.
 - **Testing notes:** tests call the Worker through `exports.default.fetch` from `cloudflare:workers`, and migrations are applied by `test/apply-migrations.ts`. D1 storage is **not** reset between tests in a file, so create unique ids and emails in each test.
 - **Compatibility date:** `@cloudflare/vitest-pool-workers` bundles its own, older `workerd`. Don't set `compatibility_date` in `wrangler.jsonc` newer than that runtime supports, or the tests hang at startup.
+- **Deploys run in GitHub Actions** (`.github/workflows/ci-deploy.yml`). Every pull request runs the typecheck and tests. Each push to `main` runs them again, then applies D1 migrations, checks none are pending, deploys, and smoke-tests the site. The deploy job uses the `production` environment, which waits for the repo owner's approval and only accepts `main`. It uses the `CLOUDFLARE_API_TOKEN` secret and the `CLOUDFLARE_ACCOUNT_ID` variable on that environment. Ship changes by merging a PR; use the manual commands only if the workflow is unavailable. Keep actions pinned to commit SHAs.
 - **Production:** https://fairplay-wizard.jeremywall.workers.dev, with D1 database `fairplay`. `BETTER_AUTH_URL` is a var in `wrangler.jsonc` (overridden locally by `.dev.vars`), and `BETTER_AUTH_SECRET` is a Worker secret. Apply new migrations with `npm run db:migrate:remote` **before** deploying code that depends on them.
 
 ## Domain rules
