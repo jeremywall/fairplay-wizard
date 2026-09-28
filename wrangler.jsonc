@@ -24,5 +24,21 @@
   },
   // Local dev overrides this with BETTER_AUTH_URL from .dev.vars.
   "vars": { "BETTER_AUTH_URL": "https://fairplay-wizard.jeremywall.workers.dev" },
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  "env": {
+    // Preview site for pull requests (`--env staging`), with its own database
+    // and auth secret. Bindings and vars aren't inherited, so repeat them here.
+    "staging": {
+      "name": "fairplay-wizard-staging",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "fairplay-staging",
+          "database_id": "abe5a1df-bc74-4e22-85bf-7e0c56fc2296",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "vars": { "BETTER_AUTH_URL": "https://fairplay-wizard-staging.jeremywall.workers.dev" }
+    }
+  }
 }
