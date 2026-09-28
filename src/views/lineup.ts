@@ -13,13 +13,13 @@ export interface SetupState {
   error?: string;
 }
 
-const radioLabel = "flex min-h-11 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2";
+const radioLabel = "flex min-h-11 items-center gap-2 rounded-md border border-slate-700 bg-slate-900 px-3 py-2";
 export const primaryButton =
-  "min-h-11 rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50";
-export const secondaryButton = "min-h-11 rounded-md border border-slate-300 bg-white px-4 py-2 font-medium hover:bg-slate-50";
+  "min-h-11 rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50";
+export const secondaryButton = "min-h-11 rounded-md border border-slate-600 bg-slate-900 px-4 py-2 font-medium hover:bg-slate-800";
 
 export function backToTeam(teamId: string) {
-  return html`<button class="text-sm text-slate-600 hover:underline" hx-get="/app/teams/${teamId}" hx-target="#main" hx-swap="innerHTML">← Back to team</button>`;
+  return html`<button class="text-sm text-slate-400 hover:underline" hx-get="/app/teams/${teamId}" hx-target="#main" hx-swap="innerHTML">← Back to team</button>`;
 }
 
 export function setupForm(team: TeamDetails, roster: Player[], state: SetupState) {
@@ -30,50 +30,50 @@ export function setupForm(team: TeamDetails, roster: Player[], state: SetupState
       <h2 class="mt-2 text-2xl font-semibold">Plan a game: ${team.name}</h2>
     </div>
     <form class="space-y-6" id="lineup-setup" hx-post="/app/teams/${team.id}/lineup" hx-target="#lineup-panel" hx-swap="outerHTML">
-      ${state.error ? html`<p class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">${state.error}</p>` : ""}
+      ${state.error ? html`<p class="rounded-md bg-red-950 px-3 py-2 text-sm text-red-300" role="alert">${state.error}</p>` : ""}
       <fieldset class="space-y-2">
         <div class="flex items-center justify-between">
-          <legend class="font-semibold">Who's here? <span class="font-normal text-slate-600">(<span data-present-count>${state.selected.size}</span> present)</span></legend>
+          <legend class="font-semibold">Who's here? <span class="font-normal text-slate-400">(<span data-present-count>${state.selected.size}</span> present)</span></legend>
           <button class="${secondaryButton}" type="button" data-all-present>All present</button>
         </div>
         ${roster.length === 0
-          ? html`<p class="text-slate-500">Add players to the roster first.</p>`
+          ? html`<p class="text-slate-400">Add players to the roster first.</p>`
           : html`<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
               ${roster.map(
                 (p) => html`<label class="${radioLabel}">
-                  <input class="size-5 accent-emerald-700" type="checkbox" name="player" value="${p.id}" data-attendance ${state.selected.has(p.id) ? "checked" : ""}>
-                  <span>${p.name}${p.jerseyNumber ? html` <span class="text-sm text-slate-500">#${p.jerseyNumber}</span>` : ""}</span>
+                  <input class="size-5 accent-emerald-500" type="checkbox" name="player" value="${p.id}" data-attendance ${state.selected.has(p.id) ? "checked" : ""}>
+                  <span>${p.name}${p.jerseyNumber ? html` <span class="text-sm text-slate-400">#${p.jerseyNumber}</span>` : ""}</span>
                 </label>`,
               )}
             </div>`}
       </fieldset>
 
       <label class="block font-semibold">Innings
-        <select class="mt-1 block min-h-11 w-28 rounded-md border border-slate-300 bg-white px-3 py-2 font-normal" name="innings">
+        <select class="mt-1 block min-h-11 w-28 rounded-md border border-slate-600 bg-slate-900 px-3 py-2 font-normal" name="innings">
           ${inningChoices.map((n) => html`<option value="${n}" ${n === state.innings ? "selected" : ""}>${n}</option>`)}
         </select>
       </label>
 
-      <p class="text-sm text-slate-600">With 10 or more players this team plays a <span class="font-medium text-slate-900">${team.alignmentMode}-player defense</span>. Change it in the team's game settings.</p>
+      <p class="text-sm text-slate-400">With 10 or more players this team plays a <span class="font-medium text-slate-100">${team.alignmentMode}-player defense</span>. Change it in the team's game settings.</p>
 
       <fieldset class="space-y-2">
         <legend class="font-semibold">Pitcher limit</legend>
-        <label class="${radioLabel}"><input class="size-5 accent-emerald-700" type="radio" name="pitcherInningLimit" value="1" ${state.pitcherInningLimit === 1 ? "checked" : ""}> 1 inning per pitcher</label>
-        <label class="${radioLabel}"><input class="size-5 accent-emerald-700" type="radio" name="pitcherInningLimit" value="2" ${state.pitcherInningLimit === 2 ? "checked" : ""}> Up to 2 innings per pitcher</label>
+        <label class="${radioLabel}"><input class="size-5 accent-emerald-500" type="radio" name="pitcherInningLimit" value="1" ${state.pitcherInningLimit === 1 ? "checked" : ""}> 1 inning per pitcher</label>
+        <label class="${radioLabel}"><input class="size-5 accent-emerald-500" type="radio" name="pitcherInningLimit" value="2" ${state.pitcherInningLimit === 2 ? "checked" : ""}> Up to 2 innings per pitcher</label>
       </fieldset>
 
       <div>
         <button class="${primaryButton} w-full" type="submit" data-generate ${state.selected.size < MIN_PLAYERS ? "disabled" : ""}>Generate lineup</button>
-        <p class="mt-2 text-center text-sm text-slate-500">Needs at least ${MIN_PLAYERS} players.</p>
+        <p class="mt-2 text-center text-sm text-slate-400">Needs at least ${MIN_PLAYERS} players.</p>
       </div>
     </form>
   </section>`;
 }
 
 const slotClass: Record<"infield" | "outfield" | "bench", string> = {
-  infield: "bg-emerald-50 text-emerald-900",
-  outfield: "bg-sky-50 text-sky-900",
-  bench: "bg-slate-100 text-slate-500",
+  infield: "bg-emerald-950 text-emerald-200",
+  outfield: "bg-sky-950 text-sky-200",
+  bench: "bg-slate-800 text-slate-400",
 };
 
 function slotCell(slot: Slot) {
@@ -82,9 +82,9 @@ function slotCell(slot: Slot) {
 }
 
 const fairnessClass: Record<FairnessReport["label"], string> = {
-  Excellent: "bg-emerald-100 text-emerald-900",
-  Good: "bg-amber-100 text-amber-900",
-  Uneven: "bg-red-100 text-red-900",
+  Excellent: "bg-emerald-900 text-emerald-100",
+  Good: "bg-amber-900 text-amber-100",
+  Uneven: "bg-red-900 text-red-100",
 };
 
 /** Summary line: players, fielders, innings and pitcher limit. */
@@ -96,19 +96,19 @@ export function lineupDescription(lineup: Lineup) {
 /** Position by inning, one row per player. */
 export function lineupGrid(lineup: Lineup) {
   const inningNumbers = lineup.innings.map((_, i) => i + 1);
-  return html`<div class="overflow-x-auto rounded-md border border-slate-200 bg-white">
+  return html`<div class="overflow-x-auto rounded-md border border-slate-700 bg-slate-900">
     <table class="min-w-full text-sm">
       <caption class="px-3 py-2 text-left font-semibold">Positions by inning</caption>
-      <thead class="bg-slate-50 text-slate-600">
+      <thead class="bg-slate-800 text-slate-400">
         <tr>
-          <th class="sticky left-0 bg-slate-50 px-3 py-2 text-left font-medium" scope="col">Player</th>
+          <th class="sticky left-0 bg-slate-800 px-3 py-2 text-left font-medium" scope="col">Player</th>
           ${inningNumbers.map((n) => html`<th class="px-2 py-2 text-center font-medium" scope="col">${n}</th>`)}
         </tr>
       </thead>
-      <tbody class="divide-y divide-slate-100">
+      <tbody class="divide-y divide-slate-800">
         ${lineup.players.map(
           (player, p) => html`<tr>
-            <th class="sticky left-0 whitespace-nowrap bg-white px-3 py-2 text-left font-medium" scope="row">${player.name}</th>
+            <th class="sticky left-0 whitespace-nowrap bg-slate-900 px-3 py-2 text-left font-medium" scope="row">${player.name}</th>
             ${lineup.innings.map((inning) => slotCell(inning[p]))}
           </tr>`,
         )}
@@ -121,33 +121,33 @@ export function lineupGrid(lineup: Lineup) {
 export function ruleCheckPanel(violations: Violation[], report: FairnessReport) {
   const errors = violations.filter((v) => v.severity === "error");
   const notices = violations.filter((v) => v.severity === "notice");
-  return html`<div class="space-y-3 rounded-lg bg-white p-4 shadow-sm">
+  return html`<div class="space-y-3 rounded-lg bg-slate-900 p-4 shadow-sm">
     <div class="flex flex-wrap items-center gap-3">
       <h3 class="font-semibold">Fairness</h3>
       <span class="rounded-full px-3 py-1 text-sm font-medium ${fairnessClass[report.label]}">${report.label}</span>
-      <span class="text-sm text-slate-600">bench ±${report.spreads.bench}, infield ±${report.spreads.infield}, outfield ±${report.spreads.outfield}</span>
+      <span class="text-sm text-slate-400">bench ±${report.spreads.bench}, infield ±${report.spreads.infield}, outfield ±${report.spreads.outfield}</span>
     </div>
     <h3 class="font-semibold">Rule check</h3>
     ${violations.length === 0
-      ? html`<p class="text-sm text-emerald-800">Every rule is met.</p>`
+      ? html`<p class="text-sm text-emerald-400">Every rule is met.</p>`
       : html`<ul class="space-y-1 text-sm">
-          ${errors.map((v) => html`<li class="rounded-md bg-red-50 px-3 py-2 text-red-800"><span class="font-semibold">${v.ruleId}</span> ${v.message}</li>`)}
-          ${notices.map((v) => html`<li class="rounded-md bg-amber-50 px-3 py-2 text-amber-900"><span class="font-semibold">${v.ruleId}</span> ${v.message}</li>`)}
+          ${errors.map((v) => html`<li class="rounded-md bg-red-950 px-3 py-2 text-red-200"><span class="font-semibold">${v.ruleId}</span> ${v.message}</li>`)}
+          ${notices.map((v) => html`<li class="rounded-md bg-amber-950 px-3 py-2 text-amber-200"><span class="font-semibold">${v.ruleId}</span> ${v.message}</li>`)}
         </ul>`}
     ${errors.length > 0
-      ? html`<p class="text-sm text-slate-600">Some rules can't all be met with this attendance and these options. Try Regenerate, or change the options.</p>`
+      ? html`<p class="text-sm text-slate-400">Some rules can't all be met with this attendance and these options. Try Regenerate, or change the options.</p>`
       : ""}
   </div>`;
 }
 
 /** Innings per player at P, C, IF (1B–SS), OF and bench. */
 export function summaryTable(lineup: Lineup) {
-  return html`<div class="overflow-x-auto rounded-md border border-slate-200 bg-white">
+  return html`<div class="overflow-x-auto rounded-md border border-slate-700 bg-slate-900">
     <table class="min-w-full text-sm">
       <caption class="px-3 py-2 text-left font-semibold">Innings by player</caption>
-      <thead class="bg-slate-50 text-slate-600">
+      <thead class="bg-slate-800 text-slate-400">
         <tr>
-          <th class="sticky left-0 bg-slate-50 px-3 py-2 text-left font-medium" scope="col">Player</th>
+          <th class="sticky left-0 bg-slate-800 px-3 py-2 text-left font-medium" scope="col">Player</th>
           <th class="px-2 py-2 text-center font-medium" scope="col">P</th>
           <th class="px-2 py-2 text-center font-medium" scope="col">C</th>
           <th class="px-2 py-2 text-center font-medium" scope="col" title="1B, 2B, 3B, SS">IF</th>
@@ -155,11 +155,11 @@ export function summaryTable(lineup: Lineup) {
           <th class="px-2 py-2 text-center font-medium" scope="col">Bench</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-slate-100">
+      <tbody class="divide-y divide-slate-800">
         ${lineup.players.map((player, p) => {
           const t = playerTotals(slotsOf(lineup, p));
           return html`<tr>
-            <th class="sticky left-0 whitespace-nowrap bg-white px-3 py-2 text-left font-medium" scope="row">${player.name}</th>
+            <th class="sticky left-0 whitespace-nowrap bg-slate-900 px-3 py-2 text-left font-medium" scope="row">${player.name}</th>
             <td class="px-2 py-2 text-center tabular-nums">${t.pitcher}</td>
             <td class="px-2 py-2 text-center tabular-nums">${t.catcher}</td>
             <td class="px-2 py-2 text-center tabular-nums">${t.infield - t.pitcher - t.catcher}</td>
@@ -184,7 +184,7 @@ export function lineupResult(teamId: string, lineup: Lineup, violations: Violati
     <div>
       ${backToTeam(teamId)}
       <h2 class="mt-2 text-2xl font-semibold">Lineup</h2>
-      <p class="text-sm text-slate-600">${lineupDescription(lineup)}</p>
+      <p class="text-sm text-slate-400">${lineupDescription(lineup)}</p>
     </div>
 
     <form class="flex flex-wrap gap-2" hx-post="/app/teams/${teamId}/lineup" hx-target="#lineup-panel" hx-swap="outerHTML">
@@ -197,18 +197,18 @@ export function lineupResult(teamId: string, lineup: Lineup, violations: Violati
     ${ruleCheckPanel(violations, report)}
     ${summaryTable(lineup)}
 
-    <form class="space-y-3 rounded-lg bg-white p-4 shadow-sm" hx-post="/app/teams/${teamId}/games" hx-target="#main" hx-swap="innerHTML">
+    <form class="space-y-3 rounded-lg bg-slate-900 p-4 shadow-sm" hx-post="/app/teams/${teamId}/games" hx-target="#main" hx-swap="innerHTML">
       <h3 class="font-semibold">Save this lineup</h3>
-      <p class="text-sm text-slate-600">Saved games appear on the team page. After the game, finalize it so it counts toward season stats.</p>
+      <p class="text-sm text-slate-400">Saved games appear on the team page. After the game, finalize it so it counts toward season stats.</p>
       <input type="hidden" name="lineup" value="${saved}">
       <input type="hidden" name="innings" value="${options.innings}">
       <input type="hidden" name="pitcherInningLimit" value="${options.pitcherInningLimit}">
       <div class="flex flex-wrap items-end gap-3">
         <label class="text-sm font-medium">Date
-          <input class="mt-1 block min-h-11 rounded-md border border-slate-300 px-3 py-2" type="date" name="date" value="${today}" required>
+          <input class="mt-1 block min-h-11 rounded-md border border-slate-600 px-3 py-2" type="date" name="date" value="${today}" required>
         </label>
         <label class="text-sm font-medium">Opponent (optional)
-          <input class="mt-1 block min-h-11 rounded-md border border-slate-300 px-3 py-2" type="text" name="opponent" maxlength="60">
+          <input class="mt-1 block min-h-11 rounded-md border border-slate-600 px-3 py-2" type="text" name="opponent" maxlength="60">
         </label>
         <button class="${primaryButton}" type="submit">Save game</button>
       </div>
