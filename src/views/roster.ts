@@ -5,19 +5,19 @@ import type { TeamDetails } from "../db/teams";
 import type { SeasonTotals } from "../domain/season";
 import { gamesList, seasonStats } from "./games";
 
-const inputClass = "rounded-md border border-slate-300 px-3 py-2";
+const inputClass = "rounded-md border border-slate-600 px-3 py-2";
 
 function alert(message?: string) {
-  return message ? html`<p class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">${message}</p>` : "";
+  return message ? html`<p class="rounded-md bg-red-950 px-3 py-2 text-sm text-red-300" role="alert">${message}</p>` : "";
 }
 
 export function teamPage(team: TeamDetails, players: Player[], games: GameSummary[], totals: Map<string, SeasonTotals>) {
   return html`<section class="mx-auto max-w-xl space-y-8">
     <div>
-      <button class="text-sm text-slate-600 hover:underline" hx-get="/app/home" hx-target="#main" hx-swap="innerHTML">← All teams</button>
+      <button class="text-sm text-slate-400 hover:underline" hx-get="/app/home" hx-target="#main" hx-swap="innerHTML">← All teams</button>
       <h2 class="mt-2 text-2xl font-semibold">${team.name}</h2>
     </div>
-    <button class="min-h-11 w-full rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800" hx-get="/app/teams/${team.id}/lineup" hx-target="#main" hx-swap="innerHTML">Plan a game</button>
+    <button class="min-h-11 w-full rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-600" hx-get="/app/teams/${team.id}/lineup" hx-target="#main" hx-swap="innerHTML">Plan a game</button>
     ${gamesList(team.id, games)}
     ${seasonStats(players, totals)}
     ${teamSettings(team)}
@@ -26,7 +26,7 @@ export function teamPage(team: TeamDetails, players: Player[], games: GameSummar
 }
 
 export function teamSettings(team: TeamDetails, opts: { error?: string; saved?: boolean } = {}) {
-  return html`<form class="space-y-3 rounded-lg bg-white p-4 shadow-sm" id="team-settings"
+  return html`<form class="space-y-3 rounded-lg bg-slate-900 p-4 shadow-sm" id="team-settings"
       hx-post="/app/teams/${team.id}/settings" hx-target="#team-settings" hx-swap="outerHTML">
     <h3 class="font-semibold">Game settings</h3>
     ${alert(opts.error)}
@@ -43,15 +43,15 @@ export function teamSettings(team: TeamDetails, opts: { error?: string; saved?: 
     </div>
     <fieldset class="space-y-2">
       <legend class="text-sm font-medium">Defense with 10 or more players</legend>
-      <p class="text-sm text-slate-600">With 9 or fewer players, the standard alignment for that number is always used.</p>
+      <p class="text-sm text-slate-400">With 9 or fewer players, the standard alignment for that number is always used.</p>
       <div class="flex flex-wrap gap-2">
-        <label class="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 px-3 py-2"><input class="size-5 accent-emerald-700" type="radio" name="alignmentMode" value="9" ${team.alignmentMode === 9 ? "checked" : ""}> 9 players (3 outfielders)</label>
-        <label class="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 px-3 py-2"><input class="size-5 accent-emerald-700" type="radio" name="alignmentMode" value="10" ${team.alignmentMode === 10 ? "checked" : ""}> 10 players (4 outfielders)</label>
+        <label class="flex min-h-11 items-center gap-2 rounded-md border border-slate-700 px-3 py-2"><input class="size-5 accent-emerald-500" type="radio" name="alignmentMode" value="9" ${team.alignmentMode === 9 ? "checked" : ""}> 9 players (3 outfielders)</label>
+        <label class="flex min-h-11 items-center gap-2 rounded-md border border-slate-700 px-3 py-2"><input class="size-5 accent-emerald-500" type="radio" name="alignmentMode" value="10" ${team.alignmentMode === 10 ? "checked" : ""}> 10 players (4 outfielders)</label>
       </div>
     </fieldset>
     <div class="flex items-center gap-3">
-      <button class="rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800" type="submit">Save</button>
-      ${opts.saved ? html`<span class="text-sm text-emerald-700">Saved</span>` : ""}
+      <button class="rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-600" type="submit">Save</button>
+      ${opts.saved ? html`<span class="text-sm text-emerald-400">Saved</span>` : ""}
     </div>
   </form>`;
 }
@@ -63,16 +63,16 @@ export function roster(teamId: string, players: Player[], opts: { error?: string
     <form class="flex gap-2" hx-post="${base}" hx-target="#roster" hx-swap="outerHTML">
       <input class="${inputClass} flex-1" type="text" name="name" placeholder="Player name" maxlength="60" required>
       <input class="${inputClass} w-20" type="text" name="jerseyNumber" placeholder="#" maxlength="3" inputmode="numeric" pattern="[0-9]*">
-      <button class="rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800" type="submit">Add</button>
+      <button class="rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-600" type="submit">Add</button>
     </form>
     ${alert(opts.error)}
     ${players.length === 0
-      ? html`<p class="rounded-md border border-dashed border-slate-300 px-4 py-6 text-center text-slate-500">No players yet.</p>`
-      : html`<ul class="divide-y divide-slate-200 rounded-md border border-slate-200 bg-white">
+      ? html`<p class="rounded-md border border-dashed border-slate-600 px-4 py-6 text-center text-slate-400">No players yet.</p>`
+      : html`<ul class="divide-y divide-slate-700 rounded-md border border-slate-700 bg-slate-900">
           ${players.map(
             (p) => html`<li class="flex items-center gap-3 px-3 py-2">
-              <span class="flex-1">${p.name}${p.jerseyNumber ? html` <span class="text-sm text-slate-500">#${p.jerseyNumber}</span>` : ""}</span>
-              <button class="rounded px-2 py-1 text-sm text-red-700 hover:bg-red-50"
+              <span class="flex-1">${p.name}${p.jerseyNumber ? html` <span class="text-sm text-slate-400">#${p.jerseyNumber}</span>` : ""}</span>
+              <button class="rounded px-2 py-1 text-sm text-red-300 hover:bg-red-950"
                 hx-delete="${base}/${p.id}" hx-target="#roster" hx-swap="outerHTML"
                 hx-confirm="Remove ${p.name} from the roster?">Remove</button>
             </li>`,
