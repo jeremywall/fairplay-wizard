@@ -1,2 +1,5 @@
 BETTER_AUTH_SECRET=generate-with: node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 BETTER_AUTH_URL=http://localhost:8787
+# Optional: Google sign-in (OAuth client from Google Cloud). Leave empty to hide the button.
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
