@@ -9,7 +9,7 @@ function fragmentFor(path) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  htmx.ajax("GET", fragmentFor(location.pathname), { target: "#main", swap: "innerHTML" });
+  htmx.ajax("GET", fragmentFor(location.pathname) + location.search, { target: "#main", swap: "innerHTML" });
 });
 
 // A screen that no longer exists (for example a deleted game): say so instead

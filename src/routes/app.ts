@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 import { addPlayer, listPlayers, removePlayer } from "../db/players";
 import { createTeam, getTeam, listTeamsForCoach, requireTeamAccess, updateTeamSettings } from "../db/teams";
+import { googleEnabled } from "../auth";
 import { requireUser } from "../middleware/session";
 import { gameRoutes } from "./games";
 import { lineupRoutes } from "./lineup";
@@ -14,9 +15,13 @@ import { teamItem, teamsPage } from "../views/teams";
 export const appRoutes = new Hono<AppEnv>();
 
 // Initial content for the app shell: the coach's teams, or the login form.
+// Google sign-in returns to "/?login=error" if it fails.
 appRoutes.get("/home", async (c) => {
   const user = c.get("user");
-  if (!user) return c.html(loginForm());
+  if (!user) {
+    const error = c.req.query("login") === "error" ? "Google sign-in didn't complete. Please try again." : undefined;
+    return c.html(loginForm({ error, google: googleEnabled(c.env) }));
+  }
   return c.html(teamsPage(user, await listTeamsForCoach(c.env.DB, user.id)));
 });
 

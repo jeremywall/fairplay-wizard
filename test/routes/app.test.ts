@@ -54,6 +54,23 @@ describe("app routes", () => {
     expect(await res.text()).toContain("Coach sign in");
   });
 
+  it("offers Google sign-in and sends the browser to Google", async () => {
+    const home = await (await exports.default.fetch(`${ORIGIN}/app/home`)).text();
+    expect(home).toContain("Continue with Google");
+
+    const res = await post("/auth/google", {});
+    const target = new URL(res.headers.get("HX-Redirect")!);
+    expect(target.origin).toBe("https://accounts.google.com");
+    expect(target.searchParams.get("client_id")).toBe("test-client-id.apps.googleusercontent.com");
+    expect(target.searchParams.get("redirect_uri")).toBe(`${ORIGIN}/api/auth/callback/google`);
+    expect(res.headers.getSetCookie().length).toBeGreaterThan(0); // OAuth state cookie
+  });
+
+  it("explains a failed Google sign-in", async () => {
+    const home = await (await exports.default.fetch(`${ORIGIN}/app/home?login=error`)).text();
+    expect(home).toContain("Google sign-in didn&#39;t complete");
+  });
+
   it("rejects cross-origin form posts", async () => {
     const res = await post("/app/teams", { name: "Tigers" }, { Origin: "https://evil.example" });
     expect(res.status).toBe(403);
