@@ -59,6 +59,26 @@ authRoutes.post("/google", async (c) => {
   return new Response(null, { status: 200, headers });
 });
 
+// Links Google to the signed-in coach's existing account. Existing
+// email/password accounts need this once: Better Auth won't link Google on
+// sign-in to an account whose email the app never verified (it would let
+// someone who pre-registered your email take over your Google sign-in).
+authRoutes.post("/google/link", async (c) => {
+  if (!googleEnabled(c.env)) return c.text("Google sign-in isn't set up.", 404);
+  const res = await c.get("auth").api.linkSocialAccount({
+    body: { provider: "google", callbackURL: "/?link=done", errorCallbackURL: "/?link=error" },
+    headers: c.req.raw.headers,
+    asResponse: true,
+  });
+  const body = await res.json<{ url?: string }>().catch(() => null);
+  if (!res.ok || !body?.url) {
+    return new Response(null, { status: 200, headers: { "HX-Redirect": "/?link=error" } });
+  }
+  const headers = new Headers({ "HX-Redirect": body.url });
+  for (const cookie of res.headers.getSetCookie()) headers.append("Set-Cookie", cookie);
+  return new Response(null, { status: 200, headers });
+});
+
 authRoutes.post("/logout", async (c) => {
   const res = await c.get("auth").api.signOut({ headers: c.req.raw.headers, asResponse: true });
   return redirectHome(res);

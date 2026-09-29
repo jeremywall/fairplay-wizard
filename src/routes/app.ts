@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
+import { hasLinkedProvider } from "../db/accounts";
 import { addPlayer, listPlayers, removePlayer } from "../db/players";
 import { createTeam, getTeam, listTeamsForCoach, requireTeamAccess, updateTeamSettings } from "../db/teams";
 import { googleEnabled } from "../auth";
@@ -15,14 +16,39 @@ import { teamItem, teamsPage } from "../views/teams";
 export const appRoutes = new Hono<AppEnv>();
 
 // Initial content for the app shell: the coach's teams, or the login form.
-// Google sign-in returns to "/?login=error" if it fails.
+// Google sign-in returns to "/?login=error&error=<code>" if it fails, and
+// Connect Google returns to "/?link=done" or "/?link=error&error=<code>".
 appRoutes.get("/home", async (c) => {
   const user = c.get("user");
+  const google = googleEnabled(c.env);
+  const code = c.req.query("error") ?? "";
   if (!user) {
-    const error = c.req.query("login") === "error" ? "Google sign-in didn't complete. Please try again." : undefined;
-    return c.html(loginForm({ error, google: googleEnabled(c.env) }));
+    let error: string | undefined;
+    if (c.req.query("login") === "error") {
+      error = /not.linked/i.test(code)
+        ? "That email already has a password account. Sign in with your password, then use Connect Google on your teams page."
+        : "Google sign-in didn't complete. Please try again.";
+    }
+    return c.html(loginForm({ error, google }));
   }
-  return c.html(teamsPage(user, await listTeamsForCoach(c.env.DB, user.id)));
+
+  let notice: { error?: boolean; text: string } | undefined;
+  if (c.req.query("link") === "done") notice = { text: "Google is connected. Next time you can sign in with Google." };
+  if (c.req.query("link") === "error") {
+    notice = {
+      error: true,
+      text: /email/i.test(code)
+        ? "Couldn't connect Google: use the Google account with the same email as this account."
+        : /already.linked/i.test(code)
+          ? "Couldn't connect Google: that Google account is already connected to a different account."
+          : "Couldn't connect Google. Please try again.",
+    };
+  }
+  const [teams, googleLinked] = await Promise.all([
+    listTeamsForCoach(c.env.DB, user.id),
+    google ? hasLinkedProvider(c.env.DB, user.id, "google") : Promise.resolve(false),
+  ]);
+  return c.html(teamsPage(user, teams, { google: google ? { linked: googleLinked } : undefined, notice }));
 });
 
 appRoutes.use("/teams", requireUser);

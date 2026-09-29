@@ -1,4 +1,4 @@
-import { exports } from "cloudflare:workers";
+import { env, exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 
 const ORIGIN = "http://example.com";
@@ -69,6 +69,40 @@ describe("app routes", () => {
   it("explains a failed Google sign-in", async () => {
     const home = await (await exports.default.fetch(`${ORIGIN}/app/home?login=error`)).text();
     expect(home).toContain("Google sign-in didn&#39;t complete");
+    const notLinked = await (await exports.default.fetch(`${ORIGIN}/app/home?login=error&error=account_not_linked`)).text();
+    expect(notLinked).toContain("then use Connect Google");
+  });
+
+  it("lets a password account connect Google", async () => {
+    const cookie = await signUp("Pat");
+    const home = await (await exports.default.fetch(`${ORIGIN}/app/home`, { headers: { Cookie: cookie } })).text();
+    expect(home).toContain("Connect Google");
+
+    const res = await post("/auth/google/link", {}, { Cookie: cookie });
+    const target = new URL(res.headers.get("HX-Redirect")!);
+    expect(target.origin).toBe("https://accounts.google.com");
+    expect(target.searchParams.get("redirect_uri")).toBe(`${ORIGIN}/api/auth/callback/google`);
+
+    const done = await (await exports.default.fetch(`${ORIGIN}/app/home?link=done`, { headers: { Cookie: cookie } })).text();
+    expect(done).toContain("Google is connected");
+  });
+
+  it("hides Connect Google once Google is linked", async () => {
+    const cookie = await signUp("Pat");
+    const userId = (await env.DB.prepare(`SELECT userId FROM session ORDER BY createdAt DESC LIMIT 1`).first<{ userId: string }>())!.userId;
+    const now = new Date().toISOString();
+    await env.DB.prepare(
+      `INSERT INTO account (id, accountId, providerId, userId, createdAt, updatedAt) VALUES (?, ?, 'google', ?, ?, ?)`,
+    )
+      .bind(crypto.randomUUID(), "google-sub-123", userId, now, now)
+      .run();
+    const home = await (await exports.default.fetch(`${ORIGIN}/app/home`, { headers: { Cookie: cookie } })).text();
+    expect(home).not.toContain("Connect Google");
+  });
+
+  it("won't start Connect Google without a session", async () => {
+    const res = await post("/auth/google/link", {});
+    expect(res.headers.get("HX-Redirect")).toBe("/?link=error");
   });
 
   it("rejects cross-origin form posts", async () => {
