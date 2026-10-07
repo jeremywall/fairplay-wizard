@@ -63,13 +63,13 @@ export function seasonStats(roster: Player[], totals: Map<string, SeasonTotals>)
           <tr>
             <th class="sticky left-0 bg-slate-800 px-3 py-2 text-left font-medium" scope="col">Player</th>
             <th class="${head}" scope="col" title="Games played">G</th>
-            <th class="${head}" scope="col" title="Innings in the field">Field</th>
+            <th class="${head}" scope="col" title="Innings in the field">Innings</th>
             <th class="${head}" scope="col">Bench</th>
             <th class="${head}" scope="col" title="1B, 2B, 3B, SS">IF</th>
             <th class="${head}" scope="col" title="Outfield innings">OF</th>
             <th class="${head}" scope="col" title="Innings pitched">P</th>
             <th class="${head}" scope="col" title="Innings caught">C</th>
-            <th class="${head}" scope="col" title="Different positions played">Pos</th>
+            <th class="${head}" scope="col" title="Different positions played">Positions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-800">
