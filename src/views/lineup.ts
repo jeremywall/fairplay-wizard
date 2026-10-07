@@ -79,9 +79,14 @@ const slotClass: Record<"infield" | "outfield" | "bench", string> = {
   bench: "bg-slate-800 text-slate-400",
 };
 
+// Pitcher and catcher count as infield, but get their own colors so they stand out.
+const batteryClass: Partial<Record<Slot, string>> = {
+  P: "bg-amber-950 text-amber-200 font-bold",
+  C: "bg-violet-950 text-violet-200 font-bold",
+};
+
 function slotCell(slot: Slot) {
-  const emphasis = slot === "P" || slot === "C" ? " font-bold" : "";
-  return html`<td class="px-2 py-2 text-center tabular-nums ${slotClass[categoryOf(slot)]}${emphasis}">${slot}</td>`;
+  return html`<td class="px-2 py-2 text-center tabular-nums ${batteryClass[slot] ?? slotClass[categoryOf(slot)]}">${slot}</td>`;
 }
 
 const fairnessClass: Record<FairnessReport["label"], string> = {
