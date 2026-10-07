@@ -131,4 +131,4 @@ The **player summary** table shows each player's innings at Pitcher, Catcher, In
 
 ## 9. Season stats
 
-Shown on the team page for active players, from finalized games only: games played, field innings, bench innings, infield innings (including pitcher and catcher), outfield innings, innings pitched, innings caught, and number of different positions played.
+Shown on the team page for active players, from finalized games only: games played, field innings, bench innings, infield innings (1B, 2B, 3B and SS only, since pitcher and catcher have their own columns), outfield innings, innings pitched, innings caught, and number of different positions played. This is display only: the rules and SR-3 still count pitcher and catcher as infield.

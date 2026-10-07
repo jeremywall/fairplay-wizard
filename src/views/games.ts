@@ -56,7 +56,7 @@ export function seasonStats(roster: Player[], totals: Map<string, SeasonTotals>)
   const head = "px-2 py-2 text-center font-medium";
   return html`<section class="space-y-3">
     <h3 class="font-semibold">Season stats</h3>
-    <p class="text-sm text-slate-400">Totals from finalized games. IF and OF count innings by rule category, so IF includes pitcher and catcher.</p>
+    <p class="text-sm text-slate-400">Totals from finalized games. IF is 1B, 2B, 3B and SS; pitching and catching are counted in P and C.</p>
     <div class="overflow-x-auto rounded-md border border-slate-700 bg-slate-900">
       <table class="min-w-full text-sm">
         <thead class="bg-slate-800 text-slate-400">
@@ -65,7 +65,7 @@ export function seasonStats(roster: Player[], totals: Map<string, SeasonTotals>)
             <th class="${head}" scope="col" title="Games played">G</th>
             <th class="${head}" scope="col" title="Innings in the field">Field</th>
             <th class="${head}" scope="col">Bench</th>
-            <th class="${head}" scope="col" title="Infield innings, including P and C">IF</th>
+            <th class="${head}" scope="col" title="1B, 2B, 3B, SS">IF</th>
             <th class="${head}" scope="col" title="Outfield innings">OF</th>
             <th class="${head}" scope="col" title="Innings pitched">P</th>
             <th class="${head}" scope="col" title="Innings caught">C</th>
@@ -80,7 +80,7 @@ export function seasonStats(roster: Player[], totals: Map<string, SeasonTotals>)
               <td class="${cell}">${t?.games ?? 0}</td>
               <td class="${cell}">${t?.field ?? 0}</td>
               <td class="${cell}">${t?.bench ?? 0}</td>
-              <td class="${cell}">${t?.infield ?? 0}</td>
+              <td class="${cell}">${t ? t.infield - t.pitcher - t.catcher : 0}</td>
               <td class="${cell}">${t?.outfield ?? 0}</td>
               <td class="${cell}">${t?.pitcher ?? 0}</td>
               <td class="${cell}">${t?.catcher ?? 0}</td>
