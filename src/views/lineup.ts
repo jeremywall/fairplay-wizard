@@ -81,7 +81,7 @@ const slotClass: Record<"infield" | "outfield" | "bench", string> = {
 
 // Pitcher and catcher count as infield, but get their own colors so they stand out.
 const batteryClass: Partial<Record<Slot, string>> = {
-  P: "bg-amber-950 text-amber-200 font-bold",
+  P: "bg-rose-900 text-rose-100 font-bold",
   C: "bg-violet-950 text-violet-200 font-bold",
 };
 
