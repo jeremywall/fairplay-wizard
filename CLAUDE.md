@@ -41,7 +41,7 @@ This file gives Claude Code guidance for working in this repository.
 /public                   # Static assets served by the Worker (Workers Static Assets)
   index.html              # SPA shell (loads HTMX + built CSS), served for every page address
   manifest.webmanifest    # Add to Home Screen (standalone app), with /icons
-  /js/app.js              # Small UI glue: load the screen for the address, lineup setup form
+  /js/app.js              # Small UI glue: load the screen for the address, show turned-down requests' messages, lineup setup form
   /js/htmx.min.js, /css   # Build output, gitignored
 /.github/workflows        # CI and deploy (ci-deploy.yml)
 /src

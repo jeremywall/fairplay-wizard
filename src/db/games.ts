@@ -157,14 +157,11 @@ export async function getGame(db: D1Database, teamId: string, gameId: string): P
  * false, changing nothing, unless the game is this team's and still planned.
  */
 export async function updateGameLineup(db: D1Database, teamId: string, gameId: string, players: string[], innings: Slot[][]): Promise<boolean> {
-  const planned = await db
-    .prepare(`SELECT 1 FROM game WHERE id = ? AND team_id = ? AND status = 'planned'`)
-    .bind(gameId, teamId)
-    .first();
-  if (!planned) return false;
-  // Every statement re-checks the game, so a finalize that lands in between leaves it untouched.
+  // A batch runs as one transaction, and every statement checks the game is
+  // still planned. The first is a no-op UPDATE whose row count says whether it was.
   const editable = `EXISTS (SELECT 1 FROM game WHERE id = ? AND team_id = ? AND status = 'planned')`;
-  await db.batch([
+  const [planned] = await db.batch([
+    db.prepare(`UPDATE game SET status = status WHERE id = ? AND team_id = ? AND status = 'planned'`).bind(gameId, teamId),
     db.prepare(`DELETE FROM game_assignment WHERE game_id = ? AND ${editable}`).bind(gameId, gameId, teamId),
     ...innings.flatMap((inning, i) =>
       inning.map((slot, k) =>
@@ -174,7 +171,7 @@ export async function updateGameLineup(db: D1Database, teamId: string, gameId: s
       ),
     ),
   ]);
-  return true;
+  return planned.meta.changes > 0;
 }
 
 /** Marks a game as played, so it counts toward season stats and SR-3. */

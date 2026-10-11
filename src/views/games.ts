@@ -10,7 +10,9 @@ import {
   lineupDescription,
   lineupEditor,
   lineupGrid,
+  errorSlot,
   primaryButton,
+  ruleCheckFooter,
   ruleCheckPanel,
   secondaryButton,
   summaryTable,
@@ -125,7 +127,7 @@ export function gamePage(
     ${game.status === "planned"
       ? html`<button class="${secondaryButton}" ${nav(`/teams/${teamId}/games/${game.id}/edit`)}>Edit positions</button>`
       : ""}
-    ${ruleCheckPanel(violations, report)}
+    ${ruleCheckPanel(violations, report, game.status === "planned" ? ruleCheckFooter.planned : undefined)}
     ${summaryTable(lineup)}
 
     ${game.status === "planned"
@@ -146,12 +148,15 @@ export function gameEditPage(teamId: string, game: GameDetail, lineup: Lineup, v
       <p class="text-sm text-slate-400">${lineupDescription(lineup)}</p>
     </div>
 
-    ${lineupEditor({ checkUrl: `${base}/check`, lineup, violations, report })}
+    ${lineupEditor({ checkUrl: `${base}/check`, lineup, violations, report, footer: ruleCheckFooter.edited })}
 
-    <div class="flex flex-wrap gap-2">
-      <button class="${primaryButton}" hx-post="${base}/lineup" hx-include="#lineup-edit" hx-sync="#lineup-edit:queue all" hx-target="#main"
-        hx-swap="innerHTML show:window:top" hx-disabled-elt="this">${busyLabel("Save changes", "Saving…")}</button>
-      <button class="${secondaryButton}" ${nav(gameUrl)}>Cancel</button>
+    <div class="space-y-3">
+      ${errorSlot("save-error")}
+      <div class="flex flex-wrap gap-2">
+        <button class="${primaryButton}" hx-post="${base}/lineup" hx-include="#lineup-edit" hx-sync="#lineup-edit:queue all" hx-target="#main"
+          hx-swap="innerHTML show:window:top" hx-disabled-elt="this" data-error-target="save-error">${busyLabel("Save changes", "Saving…")}</button>
+        <button class="${secondaryButton}" ${nav(gameUrl)}>Cancel</button>
+      </div>
     </div>
   </section>`;
 }

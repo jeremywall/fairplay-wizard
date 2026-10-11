@@ -1,4 +1,5 @@
 import { assignSlot } from "../domain/edit";
+import { type GameOptions, MAX_INNINGS, MIN_INNINGS } from "../domain/lineup";
 import { MIN_PLAYERS, POSITIONS, type Slot } from "../domain/positions";
 import { cellName } from "../views/lineup";
 
@@ -10,6 +11,27 @@ const VALID_SLOTS = new Set<string>([...Object.keys(POSITIONS), "BN"]);
 export interface PostedLineup {
   players: string[];
   innings: Slot[][];
+}
+
+type TeamSettings = Pick<GameOptions, "alignmentMode" | "minDefensiveOuts" | "minInfieldInnings">;
+
+/**
+ * The options a new lineup was generated with, which the editor carries in
+ * hidden fields, so a team settings change made meanwhile doesn't change the
+ * rules under the coach. A missing team setting falls back to `team` (forms
+ * rendered before these fields existed). Returns null if a field is invalid.
+ */
+export function readOptions(body: Record<string, unknown>, team: TeamSettings): GameOptions | null {
+  const setting = (name: keyof TeamSettings) => (body[name] === undefined ? team[name] : Number(body[name]));
+  const innings = Number(body.innings);
+  const alignmentMode = setting("alignmentMode");
+  const minDefensiveOuts = setting("minDefensiveOuts");
+  const minInfieldInnings = setting("minInfieldInnings");
+  const inRange = (n: number, max: number) => Number.isInteger(n) && n >= 0 && n <= max;
+  if (!Number.isInteger(innings) || innings < MIN_INNINGS || innings > MAX_INNINGS) return null;
+  if (alignmentMode !== 9 && alignmentMode !== 10) return null;
+  if (!inRange(minDefensiveOuts, MAX_INNINGS * 3) || !inRange(minInfieldInnings, MAX_INNINGS)) return null;
+  return { innings, alignmentMode, pitcherInningLimit: body.pitcherInningLimit === "2" ? 2 : 1, minDefensiveOuts, minInfieldInnings };
 }
 
 /**

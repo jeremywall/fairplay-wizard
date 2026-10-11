@@ -9,8 +9,8 @@ import { MIN_PLAYERS } from "../domain/positions";
 import { checkLineup } from "../domain/rules";
 import { seasonTotals } from "../domain/season";
 import type { AppEnv } from "../types";
-import { lineupEditor, lineupResult, type SetupState, setupForm } from "../views/lineup";
-import { readLineup } from "./lineup-form";
+import { editorUpdate, lineupResult, ruleCheckFooter, type SetupState, setupForm } from "../views/lineup";
+import { readLineup, readOptions } from "./lineup-form";
 
 // Mounted at /app/teams/:teamId/lineup. Team access is checked by the parent router.
 export const lineupRoutes = new Hono<AppEnv>();
@@ -52,26 +52,19 @@ lineupRoutes.post("/setup", async (c) => {
 lineupRoutes.post("/check", async (c) => {
   const { team, roster } = await loadTeam(c);
   const body = await c.req.parseBody();
-  const innings = Number(body.innings);
-  if (!Number.isInteger(innings) || innings < MIN_INNINGS || innings > MAX_INNINGS) return c.text("Invalid innings.", 422);
-  const posted = readLineup(body, innings, new Set(roster.map((p) => p.id)));
-  if (!posted) return c.text("Couldn't read this lineup. Generate it again and retry.", 422);
+  const options = readOptions(body, team);
+  const posted = options && readLineup(body, options.innings, new Set(roster.map((p) => p.id)));
+  if (!options || !posted) return c.text("Couldn't read this lineup. Generate it again and retry.", 422);
 
   const names = new Map(roster.map((p) => [p.id, p.name]));
   const lineup: Lineup = {
     players: posted.players.map((id) => ({ id, name: names.get(id)! })),
-    options: {
-      innings,
-      alignmentMode: team.alignmentMode,
-      pitcherInningLimit: body.pitcherInningLimit === "2" ? 2 : 1,
-      minDefensiveOuts: team.minDefensiveOuts,
-      minInfieldInnings: team.minInfieldInnings,
-    },
+    options,
     innings: posted.innings,
   };
   const season = seasonTotals(await finalGameRecords(c.env.DB, team.id));
   return c.html(
-    lineupEditor({ checkUrl: `/app/teams/${team.id}/lineup/check`, lineup, violations: checkLineup(lineup), report: fairness(lineup), season }),
+    editorUpdate({ lineup, violations: checkLineup(lineup), report: fairness(lineup), season, footer: ruleCheckFooter.edited }),
   );
 });
 

@@ -3,12 +3,12 @@ import { deleteGame, finalizeGame, type GameDetail, getGame, reopenGame, saveGam
 import { listPlayers } from "../db/players";
 import { getTeam } from "../db/teams";
 import { fairness } from "../domain/fairness";
-import { type Lineup, MAX_INNINGS, MIN_INNINGS } from "../domain/lineup";
+import type { Lineup } from "../domain/lineup";
 import { checkLineup } from "../domain/rules";
 import type { AppEnv } from "../types";
 import { gameEditPage, gamePage } from "../views/games";
-import { lineupEditor } from "../views/lineup";
-import { type PostedLineup, readLineup } from "./lineup-form";
+import { editorUpdate, ruleCheckFooter } from "../views/lineup";
+import { type PostedLineup, readLineup, readOptions } from "./lineup-form";
 import { renderTeamPage } from "./team-page";
 
 // Mounted at /app/teams/:teamId/games. Team access is checked by the parent router.
@@ -38,26 +38,19 @@ gameRoutes.post("/", async (c) => {
   const teamId = c.req.param("teamId")!;
   const [team, roster] = await Promise.all([getTeam(c.env.DB, teamId), listPlayers(c.env.DB, teamId)]);
   const form = await c.req.parseBody();
-  const innings = Number(form.innings);
+  const options = readOptions(form, team);
   const date = String(form.date ?? "");
   const opponent = String(form.opponent ?? "").trim() || null;
 
-  if (!Number.isInteger(innings) || innings < MIN_INNINGS || innings > MAX_INNINGS) return c.text("Invalid innings.", 422);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return c.text("Enter the game date.", 422);
   if (opponent !== null && opponent.length > 60) return c.text("Opponent must be 60 characters or fewer.", 422);
-  const lineup = readLineup(form, innings, new Set(roster.map((p) => p.id)));
-  if (!lineup) return c.text("Couldn't save this lineup. Generate it again and retry.", 422);
+  const lineup = options && readLineup(form, options.innings, new Set(roster.map((p) => p.id)));
+  if (!options || !lineup) return c.text("Couldn't save this lineup. Generate it again and retry.", 422);
 
   const gameId = await saveGame(c.env.DB, teamId, {
     date,
     opponent,
-    options: {
-      innings,
-      alignmentMode: team.alignmentMode,
-      pitcherInningLimit: form.pitcherInningLimit === "2" ? 2 : 1,
-      minDefensiveOuts: team.minDefensiveOuts,
-      minInfieldInnings: team.minInfieldInnings,
-    },
+    options,
     players: lineup.players,
     innings: lineup.innings,
   });
@@ -75,20 +68,24 @@ gameRoutes.get("/:gameId/edit", async (c) => {
   const teamId = c.req.param("teamId")!;
   const game = await getGame(c.env.DB, teamId, c.req.param("gameId"));
   const lineup = lineupOf(game);
-  if (game.status !== "planned") return c.html(gamePage(teamId, game, lineup, checkLineup(lineup), fairness(lineup)));
+  if (game.status !== "planned") {
+    c.header("HX-Replace-Url", `/teams/${teamId}/games/${game.id}`);
+    return c.html(gamePage(teamId, game, lineup, checkLineup(lineup), fairness(lineup)));
+  }
   return c.html(gameEditPage(teamId, game, lineup, checkLineup(lineup), fairness(lineup)));
 });
 
-// One edit in the editor: apply it and re-run the rule check.
+const FINAL_MESSAGE = "This game is final. Reopen it to change positions.";
+
+// One edit in the editor: apply it and re-run the rule check. Nothing is saved.
 gameRoutes.post("/:gameId/check", async (c) => {
   const teamId = c.req.param("teamId")!;
   const game = await getGame(c.env.DB, teamId, c.req.param("gameId"));
+  if (game.status !== "planned") return c.text(FINAL_MESSAGE, 409);
   const posted = readGameLineup(await c.req.parseBody(), game);
   if (!posted) return c.text("Couldn't read this lineup. Reload the page and retry.", 422);
   const lineup = lineupOf(game, posted.innings);
-  return c.html(
-    lineupEditor({ checkUrl: `/app/teams/${teamId}/games/${game.id}/check`, lineup, violations: checkLineup(lineup), report: fairness(lineup) }),
-  );
+  return c.html(editorUpdate({ lineup, violations: checkLineup(lineup), report: fairness(lineup), footer: ruleCheckFooter.edited }));
 });
 
 gameRoutes.post("/:gameId/lineup", async (c) => {
@@ -97,7 +94,7 @@ gameRoutes.post("/:gameId/lineup", async (c) => {
   const posted = readGameLineup(await c.req.parseBody(), game);
   if (!posted) return c.text("Couldn't save this lineup. Reload the page and retry.", 422);
   if (!(await updateGameLineup(c.env.DB, teamId, game.id, posted.players, posted.innings))) {
-    return c.text("This game is final. Reopen it to change positions.", 409);
+    return c.text(FINAL_MESSAGE, 409);
   }
   c.header("HX-Push-Url", `/teams/${teamId}/games/${game.id}`);
   return c.html(await renderGame(c.env.DB, teamId, game.id));

@@ -195,7 +195,7 @@ describe("lineup routes", () => {
     const { cookie, teamId, playerIds } = await teamWithPlayers(7);
     const page = await (await generate(teamId, cookie, playerIds, { innings: "9", pitcherInningLimit: "1" })).text();
     expect(page).toContain("HR-9");
-    expect(page).toContain("Some rules can't all be met");
+    expect(page).toContain("Try Regenerate, change the options, or edit positions.");
   });
 
   it("ignores players from other teams", async () => {
@@ -320,10 +320,18 @@ describe("game routes", () => {
     expect(selectedIn(swapped, 0, 1)).toBe(a);
     expect(lineupIn(swapped).innings[0].slice(0, 2)).toEqual([b, a]);
     expect(swapped).toContain("Season totals with this lineup");
+    // The editor form stays in place: the answer only swaps its parts in by id.
+    expect(page).toMatch(/<form[^>]*id="lineup-edit"[^>]*hx-swap="none"/);
+    expect(swapped).not.toContain("<form");
+    for (const id of ["lineup-state", "lineup-cells", "lineup-results"]) {
+      expect(swapped).toMatch(new RegExp(`id="${id}"[^>]*hx-swap-oob="true"`));
+    }
 
     // Benching a fielder leaves a position empty: shown as an error, not blocked.
     const benched = await (await post(`/app/teams/${teamId}/lineup/check`, editForm(page, { "slot-0-0": "BN" }), { Cookie: cookie })).text();
     expect(benched).toContain(`Inning 1: nobody is at ${a}.`);
+    expect(benched).toContain("You can still save these positions.");
+    expect(benched).not.toContain("Try Regenerate");
     const saved = await (await saveFrom(cookie, teamId, benched)).text();
     const gameId = saved.match(/games\/([^/"]+)\/finalize/)![1];
     expect((await getGame(env.DB, teamId, gameId)).innings[0][0]).toBe("BN");
@@ -348,11 +356,72 @@ describe("game routes", () => {
     expect((await getGame(env.DB, teamId, gameId)).innings[2].slice(0, 2)).toEqual([b, a]);
 
     await post(`${base}/finalize`, {}, { Cookie: cookie });
-    const finalEdit = await (await exports.default.fetch(`${ORIGIN}${base}/edit`, { headers: { Cookie: cookie } })).text();
+    const finalEditRes = await exports.default.fetch(`${ORIGIN}${base}/edit`, { headers: { Cookie: cookie } });
+    expect(finalEditRes.headers.get("HX-Replace-Url")).toBe(`/teams/${teamId}/games/${gameId}`);
+    const finalEdit = await finalEditRes.text();
     expect(finalEdit).toContain("Reopen it to change positions.");
     expect(finalEdit).not.toContain('id="slot-0-0"');
-    expect((await post(`${base}/lineup`, editForm(checked, { "slot-2-0": a }), { Cookie: cookie })).status).toBe(409);
+    const locked = await post(`${base}/lineup`, editForm(checked, { "slot-2-0": a }), { Cookie: cookie });
+    expect(locked.status).toBe(409);
+    expect(await locked.text()).toBe("This game is final. Reopen it to change positions.");
+    const lockedCheck = await post(`${base}/check`, editForm(checked, { "slot-2-0": a }), { Cookie: cookie });
+    expect(lockedCheck.status).toBe(409);
     expect((await getGame(env.DB, teamId, gameId)).innings[2].slice(0, 2)).toEqual([b, a]);
+  });
+
+  it("names a message slot for turned-down requests on the editor and save", async () => {
+    const { cookie, teamId, playerIds } = await setup();
+    const page = await generate(cookie, teamId, playerIds);
+    expect(page).toMatch(/id="lineup-edit"[^>]*data-error-target="lineup-edit-error"/);
+    expect(page).toMatch(/hx-post="\/app\/teams\/[^"]+\/games"[^>]*data-error-target="save-error"/);
+    expect(page).toContain('id="lineup-edit-error" role="alert" hidden');
+    expect(page).toContain('id="save-error" role="alert" hidden');
+  });
+
+  it("saves dropdown changes that the hidden lineup doesn't have yet", async () => {
+    const { cookie, teamId, playerIds } = await setup();
+    const page = await generate(cookie, teamId, playerIds);
+    const [a, b] = lineupIn(page).innings[0];
+    const saved = await (await saveFrom(cookie, teamId, page, { "slot-0-0": b })).text();
+    const gameId = saved.match(/games\/([^/"]+)\/finalize/)![1];
+    expect((await getGame(env.DB, teamId, gameId)).innings[0].slice(0, 2)).toEqual([b, a]);
+  });
+
+  it("saves a game edit posted in a different player order", async () => {
+    const { cookie, teamId, playerIds } = await setup();
+    const saved = await (await saveFrom(cookie, teamId, await generate(cookie, teamId, playerIds))).text();
+    const gameId = saved.match(/games\/([^/"]+)\/finalize/)![1];
+    const game = await getGame(env.DB, teamId, gameId);
+    const ids = game.players.map((p) => p.id);
+    const last = ids.length - 1;
+    const reversed = { players: [...ids].reverse(), innings: game.innings.map((row) => [...row].reverse()) };
+    const [first, lastSlot] = [game.innings[0][0], game.innings[0][last]];
+
+    // Posted player 0 is the game's last player: give them the game's first player's slot.
+    const res = await post(`/app/teams/${teamId}/games/${gameId}/lineup`, { lineup: JSON.stringify(reversed), "slot-0-0": first }, { Cookie: cookie });
+    expect(res.status).toBe(200);
+    const after = await getGame(env.DB, teamId, gameId);
+    expect(after.players.map((p) => p.id)).toEqual(ids);
+    expect([after.innings[0][0], after.innings[0][last]]).toEqual([lastSlot, first]);
+    expect(after.innings.slice(1)).toEqual(game.innings.slice(1));
+  });
+
+  it("checks and saves with the options the lineup was generated with", async () => {
+    const { cookie, teamId, playerIds } = await setup();
+    const page = await generate(cookie, teamId, playerIds);
+    expect(page).toContain('name="minInfieldInnings" value="2"');
+
+    // Nobody can play 6 infield innings with 2 outfielders on the field.
+    const strict = await (await post(`/app/teams/${teamId}/lineup/check`, editForm(page, { minInfieldInnings: "6" }), { Cookie: cookie })).text();
+    expect(strict).toContain("HR-6");
+    const invalid = await post(`/app/teams/${teamId}/lineup/check`, editForm(page, { alignmentMode: "8" }), { Cookie: cookie });
+    expect(invalid.status).toBe(422);
+
+    const saved = await (await saveFrom(cookie, teamId, page, { minInfieldInnings: "6", minDefensiveOuts: "9", alignmentMode: "9" })).text();
+    const gameId = saved.match(/games\/([^/"]+)\/finalize/)![1];
+    const { options } = await getGame(env.DB, teamId, gameId);
+    expect(options).toMatchObject({ minInfieldInnings: 6, minDefensiveOuts: 9, alignmentMode: 9 });
+    expect((await saveFrom(cookie, teamId, page, { minDefensiveOuts: "-1" })).status).toBe(422);
   });
 
   it("rejects edits with other players or from other coaches", async () => {
