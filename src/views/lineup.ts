@@ -2,7 +2,7 @@ import { html } from "hono/html";
 import type { Player } from "../db/players";
 import type { TeamDetails } from "../db/teams";
 import type { FairnessReport } from "../domain/fairness";
-import { type GameOptions, type Lineup, MAX_INNINGS, MIN_INNINGS, playerTotals, slotsOf } from "../domain/lineup";
+import { type GameOptions, type Lineup, lineupPositions, MAX_INNINGS, MIN_INNINGS, playerTotals, slotsOf } from "../domain/lineup";
 import { categoryOf, fieldedPositions, MIN_PLAYERS, type Slot } from "../domain/positions";
 import type { Violation } from "../domain/rules";
 import { addGame, type SeasonTotals } from "../domain/season";
@@ -85,8 +85,12 @@ const batteryClass: Partial<Record<Slot, string>> = {
   C: "bg-violet-950 text-violet-200 font-bold",
 };
 
+function slotColor(slot: Slot) {
+  return batteryClass[slot] ?? slotClass[categoryOf(slot)];
+}
+
 function slotCell(slot: Slot) {
-  return html`<td class="px-2 py-2 text-center tabular-nums ${batteryClass[slot] ?? slotClass[categoryOf(slot)]}">${slot}</td>`;
+  return html`<td class="px-2 py-2 text-center tabular-nums ${slotColor(slot)}">${slot}</td>`;
 }
 
 const fairnessClass: Record<FairnessReport["label"], string> = {
@@ -123,6 +127,75 @@ export function lineupGrid(lineup: Lineup) {
       </tbody>
     </table>
   </div>`;
+}
+
+/** Name (and id) of the editor's position dropdown for player p in inning i (0-based). */
+export function cellName(i: number, p: number) {
+  return `slot-${i}-${p}`;
+}
+
+/** Position by inning with a dropdown in each cell, for the lineup editor. */
+function editableGrid(lineup: Lineup) {
+  const choices: Slot[] = [...lineupPositions(lineup), "BN"];
+  return html`<div class="overflow-x-auto rounded-md border border-slate-700 bg-slate-900">
+    <table class="min-w-full text-sm">
+      <caption class="px-3 py-2 text-left font-semibold">
+        Positions by inning
+        <span class="block text-xs font-normal text-slate-400">Change any position. Picking one a teammate has that inning swaps the two players.</span>
+      </caption>
+      <thead class="bg-slate-800 text-slate-400">
+        <tr>
+          <th class="sticky left-0 bg-slate-800 px-3 py-2 text-left font-medium" scope="col">Player</th>
+          ${lineup.innings.map((_, i) => html`<th class="px-1 py-2 text-center font-medium" scope="col">${i + 1}</th>`)}
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-800">
+        ${lineup.players.map(
+          (player, p) => html`<tr>
+            <th class="sticky left-0 whitespace-nowrap bg-slate-900 px-3 py-2 text-left font-medium" scope="row">${player.name}</th>
+            ${lineup.innings.map((inning, i) => {
+              const current = inning[p];
+              const options = choices.includes(current) ? choices : [...choices, current];
+              return html`<td class="px-1 py-1 text-center">
+                <select class="min-h-11 w-16 rounded-md border border-slate-700 px-1 text-center font-medium ${inputText} ${slotColor(current)}"
+                  name="${cellName(i, p)}" id="${cellName(i, p)}" aria-label="${player.name}, inning ${i + 1}">
+                  ${options.map((slot) => html`<option value="${slot}" ${slot === current ? "selected" : ""}>${slot}</option>`)}
+                </select>
+              </td>`;
+            })}
+          </tr>`,
+        )}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+/**
+ * The lineup editor: editable grid, rule check, player summary and (when
+ * `season` is given) season totals. Every change posts the form to `checkUrl`,
+ * which applies it and re-renders this form with the rule check re-run.
+ * `lineup` holds the grid as rendered; save buttons include this form
+ * (`hx-include="#lineup-edit"`) and queue behind a pending check.
+ */
+export function lineupEditor(opts: {
+  checkUrl: string;
+  lineup: Lineup;
+  violations: Violation[];
+  report: FairnessReport;
+  season?: ReadonlyMap<string, SeasonTotals>;
+}) {
+  const { lineup } = opts;
+  const saved = JSON.stringify({ players: lineup.players.map((p) => p.id), innings: lineup.innings });
+  return html`<form class="space-y-6" id="lineup-edit" hx-post="${opts.checkUrl}" hx-trigger="change" hx-target="this" hx-swap="outerHTML"
+    hx-sync="this:queue all">
+    <input type="hidden" name="lineup" value="${saved}">
+    <input type="hidden" name="innings" value="${lineup.options.innings}">
+    <input type="hidden" name="pitcherInningLimit" value="${lineup.options.pitcherInningLimit}">
+    ${editableGrid(lineup)}
+    ${ruleCheckPanel(opts.violations, opts.report)}
+    ${summaryTable(lineup)}
+    ${opts.season ? seasonWithLineupTable(lineup, opts.season) : ""}
+  </form>`;
 }
 
 /** Fairness readout and rule check. */
@@ -227,7 +300,7 @@ export function seasonWithLineupTable(lineup: Lineup, season: ReadonlyMap<string
   </div>`;
 }
 
-/** A freshly generated lineup, with Regenerate and Save. */
+/** A freshly generated lineup, with Regenerate, the editor and Save. */
 export function lineupResult(
   teamId: string,
   lineup: Lineup,
@@ -240,7 +313,6 @@ export function lineupResult(
   const optionInputs = html`${players.map((p) => html`<input type="hidden" name="player" value="${p.id}">`)}
     <input type="hidden" name="innings" value="${options.innings}">
     <input type="hidden" name="pitcherInningLimit" value="${options.pitcherInningLimit}">`;
-  const saved = JSON.stringify({ players: players.map((p) => p.id), innings: lineup.innings });
 
   return html`<section class="space-y-6" id="lineup-panel">
     <div>
@@ -257,18 +329,13 @@ export function lineupResult(
         hx-swap="outerHTML show:window:top" hx-disabled-elt="this">Change players or options</button>
     </form>
 
-    ${lineupGrid(lineup)}
-    ${ruleCheckPanel(violations, report)}
-    ${summaryTable(lineup)}
-    ${seasonWithLineupTable(lineup, season)}
+    ${lineupEditor({ checkUrl: `/app/teams/${teamId}/lineup/check`, lineup, violations, report, season })}
 
     <form class="space-y-3 rounded-lg bg-slate-900 p-4 shadow-sm" hx-post="/app/teams/${teamId}/games" hx-target="#main"
-      hx-swap="innerHTML show:window:top" hx-disabled-elt="find button[type='submit']">
+      hx-swap="innerHTML show:window:top" hx-disabled-elt="find button[type='submit']" hx-include="#lineup-edit"
+      hx-sync="#lineup-edit:queue all">
       <h3 class="font-semibold">Save this lineup</h3>
       <p class="text-sm text-slate-400">Saved games appear on the team page. After the game, finalize it so it counts toward season stats.</p>
-      <input type="hidden" name="lineup" value="${saved}">
-      <input type="hidden" name="innings" value="${options.innings}">
-      <input type="hidden" name="pitcherInningLimit" value="${options.pitcherInningLimit}">
       <div class="flex flex-wrap items-end gap-3">
         <label class="text-sm font-medium">Date
           <input class="mt-1 block min-h-11 rounded-md border border-slate-600 px-3 py-2 ${inputText}" type="date" name="date" value="${today}" required>

@@ -151,6 +151,32 @@ export async function getGame(db: D1Database, teamId: string, gameId: string): P
   };
 }
 
+/**
+ * Replaces a planned game's positions (manual edits). `innings[i][k]` is the
+ * slot of the game's k-th player, in the order getGame returns them. Returns
+ * false, changing nothing, unless the game is this team's and still planned.
+ */
+export async function updateGameLineup(db: D1Database, teamId: string, gameId: string, players: string[], innings: Slot[][]): Promise<boolean> {
+  const planned = await db
+    .prepare(`SELECT 1 FROM game WHERE id = ? AND team_id = ? AND status = 'planned'`)
+    .bind(gameId, teamId)
+    .first();
+  if (!planned) return false;
+  // Every statement re-checks the game, so a finalize that lands in between leaves it untouched.
+  const editable = `EXISTS (SELECT 1 FROM game WHERE id = ? AND team_id = ? AND status = 'planned')`;
+  await db.batch([
+    db.prepare(`DELETE FROM game_assignment WHERE game_id = ? AND ${editable}`).bind(gameId, gameId, teamId),
+    ...innings.flatMap((inning, i) =>
+      inning.map((slot, k) =>
+        db
+          .prepare(`INSERT INTO game_assignment (game_id, player_id, inning, slot) SELECT ?, ?, ?, ? WHERE ${editable}`)
+          .bind(gameId, players[k], i + 1, slot, gameId, teamId),
+      ),
+    ),
+  ]);
+  return true;
+}
+
 /** Marks a game as played, so it counts toward season stats and SR-3. */
 export async function finalizeGame(db: D1Database, teamId: string, gameId: string): Promise<void> {
   await db

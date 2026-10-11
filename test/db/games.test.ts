@@ -9,6 +9,7 @@ import {
   type NewGame,
   reopenGame,
   saveGame,
+  updateGameLineup,
 } from "../../src/db/games";
 import { addPlayer, listPlayers } from "../../src/db/players";
 import { createTeam, TeamAccessError } from "../../src/db/teams";
@@ -68,6 +69,22 @@ describe("game data access", () => {
     await finalizeGame(env.DB, otherTeam, gameId);
     await deleteGame(env.DB, otherTeam, gameId);
     expect((await getGame(env.DB, teamId, gameId)).status).toBe("planned");
+  });
+
+  it("replaces a planned game's positions, but not a final or another team's game", async () => {
+    const gameId = await saveGame(env.DB, teamId, newGame("2026-10-04"));
+    const edited: Slot[][] = [
+      ["1B", "P", "2B", "3B", "SS", "LC", "RC"],
+      ["RC", "LC", "SS", "3B", "2B", "1B", "P"],
+    ];
+    expect(await updateGameLineup(env.DB, teamId, gameId, ids, edited)).toBe(true);
+    expect((await getGame(env.DB, teamId, gameId)).innings).toEqual(edited);
+
+    const otherTeam = await createTeam(env.DB, await insertCoach(), "Cubs");
+    expect(await updateGameLineup(env.DB, otherTeam, gameId, ids, newGame("x").innings)).toBe(false);
+    await finalizeGame(env.DB, teamId, gameId);
+    expect(await updateGameLineup(env.DB, teamId, gameId, ids, newGame("x").innings)).toBe(false);
+    expect((await getGame(env.DB, teamId, gameId)).innings).toEqual(edited);
   });
 
   it("deletes a game with its lineup", async () => {
