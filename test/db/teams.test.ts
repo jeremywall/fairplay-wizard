@@ -13,13 +13,13 @@ describe("team data access", () => {
   });
 
   it("makes the creating coach the head coach", async () => {
-    const teamId = await createTeam(env.DB, coach, "Tigers");
+    const teamId = await createTeam(env.DB, coach, { name: "Tigers", year: 2026, season: "spring" });
     expect(await requireTeamAccess(env.DB, coach, teamId)).toBe("head");
-    expect(await listTeamsForCoach(env.DB, coach)).toEqual([{ id: teamId, name: "Tigers", role: "head" }]);
+    expect(await listTeamsForCoach(env.DB, coach)).toEqual([{ id: teamId, name: "Tigers", year: 2026, season: "spring", role: "head" }]);
   });
 
   it("hides other coaches' teams", async () => {
-    const teamId = await createTeam(env.DB, coach, "Tigers");
+    const teamId = await createTeam(env.DB, coach, { name: "Tigers", year: 2026, season: "spring" });
     expect(await listTeamsForCoach(env.DB, otherCoach)).toEqual([]);
     await expect(requireTeamAccess(env.DB, otherCoach, teamId)).rejects.toBeInstanceOf(TeamAccessError);
   });

@@ -32,7 +32,7 @@ describe("game data access", () => {
   }
 
   beforeEach(async () => {
-    teamId = await createTeam(env.DB, await insertCoach(), "Tigers");
+    teamId = await createTeam(env.DB, await insertCoach(), { name: "Tigers", year: 2026, season: "spring" });
     for (const name of ["A", "B", "C", "D", "E", "F", "G"]) await addPlayer(env.DB, teamId, { name, jerseyNumber: null });
     ids = (await listPlayers(env.DB, teamId)).map((p) => p.id);
   });
@@ -64,7 +64,7 @@ describe("game data access", () => {
 
   it("keeps games within their team", async () => {
     const gameId = await saveGame(env.DB, teamId, newGame("2026-10-04"));
-    const otherTeam = await createTeam(env.DB, await insertCoach(), "Cubs");
+    const otherTeam = await createTeam(env.DB, await insertCoach(), { name: "Cubs", year: 2026, season: "spring" });
     await expect(getGame(env.DB, otherTeam, gameId)).rejects.toBeInstanceOf(TeamAccessError);
     await finalizeGame(env.DB, otherTeam, gameId);
     await deleteGame(env.DB, otherTeam, gameId);
@@ -80,7 +80,7 @@ describe("game data access", () => {
     expect(await updateGameLineup(env.DB, teamId, gameId, ids, edited)).toBe(true);
     expect((await getGame(env.DB, teamId, gameId)).innings).toEqual(edited);
 
-    const otherTeam = await createTeam(env.DB, await insertCoach(), "Cubs");
+    const otherTeam = await createTeam(env.DB, await insertCoach(), { name: "Cubs", year: 2026, season: "spring" });
     expect(await updateGameLineup(env.DB, otherTeam, gameId, ids, newGame("x").innings)).toBe(false);
     await finalizeGame(env.DB, teamId, gameId);
     expect(await updateGameLineup(env.DB, teamId, gameId, ids, newGame("x").innings)).toBe(false);

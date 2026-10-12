@@ -56,8 +56,8 @@ const playerIds = Object.fromEntries(players.map((name) => [name, randomUUID()])
 const coach = `(SELECT id FROM "user" WHERE email = ${q(email)})`;
 
 const sql = [
-  `INSERT INTO team (id, name, innings_per_game, min_defensive_outs, min_infield_innings, alignment_mode)
-   SELECT ${q(teamId)}, 'Sample Team', 3, 6, 1, 10 WHERE EXISTS ${coach};`,
+  `INSERT INTO team (id, name, year, season, innings_per_game, min_defensive_outs, min_infield_innings, alignment_mode)
+   SELECT ${q(teamId)}, 'Sample Team', ${new Date().getUTCFullYear()}, 'spring', 3, 6, 1, 10 WHERE EXISTS ${coach};`,
   `INSERT INTO team_coach (team_id, user_id, role) SELECT ${q(teamId)}, id, 'head' FROM "user" WHERE email = ${q(email)};`,
   ...players.map(
     (name, k) => `INSERT INTO player (id, team_id, name, roster_order) VALUES (${q(playerIds[name])}, ${q(teamId)}, ${q(name)}, ${k + 1});`,

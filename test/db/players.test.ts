@@ -10,7 +10,7 @@ describe("roster data access", () => {
   let teamId: string;
 
   beforeEach(async () => {
-    teamId = await createTeam(env.DB, await insertCoach(), "Tigers");
+    teamId = await createTeam(env.DB, await insertCoach(), { name: "Tigers", year: 2026, season: "spring" });
     for (const name of ["Ava", "Ben", "Cal"]) await addPlayer(env.DB, teamId, { name, jerseyNumber: null });
   });
 
@@ -30,7 +30,7 @@ describe("roster data access", () => {
   });
 
   it("ignores player ids from another team", async () => {
-    const otherTeam = await createTeam(env.DB, await insertCoach(), "Cubs");
+    const otherTeam = await createTeam(env.DB, await insertCoach(), { name: "Cubs", year: 2026, season: "spring" });
     const [ava] = await listPlayers(env.DB, teamId);
     await removePlayer(env.DB, otherTeam, ava.id);
     expect(await names(teamId)).toEqual(["Ava", "Ben", "Cal"]);

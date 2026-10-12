@@ -57,7 +57,7 @@ export function setupForm(team: TeamDetails, roster: Player[], state: SetupState
         </select>
       </label>
 
-      <p class="text-sm text-slate-400">With 10 or more players this team plays a <span class="font-medium text-slate-100">${team.alignmentMode}-player defense</span>. Change it in the team's game settings.</p>
+      <p class="text-sm text-slate-400">With 10 or more players this team plays a <span class="font-medium text-slate-100">${team.alignmentMode}-player defense</span>. Change it in the team's settings.</p>
 
       <fieldset class="space-y-2">
         <legend class="font-semibold">Pitcher limit</legend>
