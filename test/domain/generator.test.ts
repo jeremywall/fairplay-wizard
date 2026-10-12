@@ -79,7 +79,8 @@ describe("generateLineup", () => {
     }
   }
 
-  it("meets every hard rule whenever the counting conditions allow it", () => {
+  // Sweeps several hundred games, which takes longer than Vitest's 5s default.
+  it("meets every hard rule whenever the counting conditions allow it", { timeout: 30_000 }, () => {
     const failures: string[] = [];
     for (const { n, options } of configs) {
       if (obviouslyInfeasible(n, options)) continue;

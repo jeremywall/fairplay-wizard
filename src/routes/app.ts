@@ -1,17 +1,19 @@
 import { Hono } from "hono";
+import { html } from "hono/html";
 import { createMiddleware } from "hono/factory";
 import { hasLinkedProvider } from "../db/accounts";
 import { addPlayer, listPlayers, removePlayer } from "../db/players";
 import { createTeam, getTeam, listTeamsForCoach, requireTeamAccess, updateTeamSettings } from "../db/teams";
 import { googleEnabled } from "../auth";
+import { readTeamInfo, readTeamSort, seasonFor } from "../domain/team-season";
 import { requireUser } from "../middleware/session";
 import { gameRoutes } from "./games";
 import { lineupRoutes } from "./lineup";
 import { renderTeamPage } from "./team-page";
 import type { AppEnv } from "../types";
 import { loginForm } from "../views/auth";
-import { roster, teamSettings } from "../views/roster";
-import { teamItem, teamsPage } from "../views/teams";
+import { roster, teamHeading, teamSettings } from "../views/roster";
+import { teamsPage, teamTable } from "../views/teams";
 
 export const appRoutes = new Hono<AppEnv>();
 
@@ -48,7 +50,10 @@ appRoutes.get("/home", async (c) => {
     listTeamsForCoach(c.env.DB, user.id),
     google ? hasLinkedProvider(c.env.DB, user.id, "google") : Promise.resolve(false),
   ]);
-  return c.html(teamsPage(user, teams, { google: google ? { linked: googleLinked } : undefined, notice }));
+  const sort = readTeamSort(c.req.query("sort"), c.req.query("dir"));
+  const now = new Date();
+  const defaults = { year: now.getUTCFullYear(), season: seasonFor(now) };
+  return c.html(teamsPage(user, teams, sort, defaults, { google: google ? { linked: googleLinked } : undefined, notice }));
 });
 
 appRoutes.use("/teams", requireUser);
@@ -66,12 +71,21 @@ appRoutes.use("/teams/:teamId/*", requireTeam);
 appRoutes.route("/teams/:teamId/lineup", lineupRoutes);
 appRoutes.route("/teams/:teamId/games", gameRoutes);
 
+// The team table, sorted by ?sort=<column>&dir=<asc|desc>.
+appRoutes.get("/teams", async (c) => {
+  const sort = readTeamSort(c.req.query("sort"), c.req.query("dir"));
+  return c.html(teamTable(await listTeamsForCoach(c.env.DB, c.get("user")!.id), sort));
+});
+
+// Creates a team and returns the team table, keeping the table's sort.
 appRoutes.post("/teams", async (c) => {
   const user = c.get("user")!;
-  const name = String((await c.req.parseBody()).name ?? "").trim();
-  if (!name || name.length > 80) return c.text("Team name must be 1–80 characters.", 422);
-  const id = await createTeam(c.env.DB, user.id, name);
-  return c.html(teamItem({ id, name, role: "head" }));
+  const form = await c.req.parseBody();
+  const read = readTeamInfo(form);
+  if ("error" in read) return c.text(read.error, 422);
+  await createTeam(c.env.DB, user.id, read.info);
+  const sort = readTeamSort(String(form.sort ?? ""), String(form.dir ?? ""));
+  return c.html(teamTable(await listTeamsForCoach(c.env.DB, user.id), sort));
 });
 
 appRoutes.get("/teams/:teamId", async (c) => {
@@ -86,9 +100,12 @@ appRoutes.post("/teams/:teamId/settings", async (c) => {
   const minInfieldInnings = Number(form.minInfieldInnings);
   const alignmentMode = Number(form.alignmentMode);
   const team = await getTeam(c.env.DB, teamId);
+  const read = readTeamInfo(form);
 
   let error: string | undefined;
-  if (!Number.isInteger(inningsPerGame) || inningsPerGame < 3 || inningsPerGame > 9) {
+  if ("error" in read) {
+    error = read.error;
+  } else if (!Number.isInteger(inningsPerGame) || inningsPerGame < 3 || inningsPerGame > 9) {
     error = "Innings per game must be a whole number from 3 to 9.";
   } else if (!Number.isInteger(minDefensiveOuts) || minDefensiveOuts < 0 || minDefensiveOuts > inningsPerGame * 3) {
     error = `Minimum defensive outs must be a whole number from 0 to ${inningsPerGame * 3}.`;
@@ -97,11 +114,12 @@ appRoutes.post("/teams/:teamId/settings", async (c) => {
   } else if (alignmentMode !== 9 && alignmentMode !== 10) {
     error = "Choose a 9-player or 10-player defense.";
   }
-  if (error) return c.html(teamSettings({ ...team, inningsPerGame, minDefensiveOuts, minInfieldInnings }, { error }));
+  if (error) return c.html(teamSettings({ ...team, ...read.info, inningsPerGame, minDefensiveOuts, minInfieldInnings }, { error }));
 
-  const settings = { inningsPerGame, minDefensiveOuts, minInfieldInnings, alignmentMode: alignmentMode as 9 | 10 };
+  const settings = { ...read.info, inningsPerGame, minDefensiveOuts, minInfieldInnings, alignmentMode: alignmentMode as 9 | 10 };
   await updateTeamSettings(c.env.DB, teamId, settings);
-  return c.html(teamSettings({ ...team, ...settings }, { saved: true }));
+  // The page heading shows the name too, so update it out of band.
+  return c.html(html`${teamSettings({ ...team, ...settings }, { saved: true })}${teamHeading({ ...team, ...settings }, true)}`);
 });
 
 appRoutes.post("/teams/:teamId/players", async (c) => {

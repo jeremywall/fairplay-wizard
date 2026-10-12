@@ -43,8 +43,8 @@ function playerIdsIn(rosterHtml: string): string[] {
 }
 
 async function createTeam(cookie: string, name: string): Promise<string> {
-  const res = await post("/app/teams", { name }, { Cookie: cookie });
-  const id = (await res.text()).match(/hx-get="\/app\/teams\/([^"]+)"/)?.[1];
+  const res = await post("/app/teams", { name, year: "2026", season: "fall" }, { Cookie: cookie });
+  const id = (await res.text()).match(/hx-get="\/app\/teams\/([^"?]+)"/)?.[1];
   expect(id).toBeDefined();
   return id!;
 }
@@ -121,14 +121,45 @@ describe("app routes", () => {
   it("lets a new coach sign up and create a team", async () => {
     const cookie = await signUp("Pat");
 
-    const created = await post("/app/teams", { name: "<Tigers>" }, { Cookie: cookie });
+    const created = await post("/app/teams", { name: "<Tigers>", year: "2026", season: "summer" }, { Cookie: cookie });
     expect(created.status).toBe(200);
     const fragment = await created.text();
     expect(fragment).toContain("&lt;Tigers&gt;");
     expect(fragment).not.toContain("<Tigers>");
+    expect(fragment).toMatch(/2026<\/td>\s*<td[^>]*>Summer<\/td>/);
 
     const home = await exports.default.fetch(`${ORIGIN}/app/home`, { headers: { Cookie: cookie } });
     expect(await home.text()).toContain("Pat's teams");
+  });
+
+  it("requires a year and season for a new team", async () => {
+    const cookie = await signUp("Pat");
+    const noSeason = await post("/app/teams", { name: "Tigers", year: "2026" }, { Cookie: cookie });
+    expect(noSeason.status).toBe(422);
+    expect(await noSeason.text()).toBe("Choose a season.");
+    const badYear = await post("/app/teams", { name: "Tigers", year: "1999", season: "fall" }, { Cookie: cookie });
+    expect(badYear.status).toBe(422);
+  });
+
+  it("sorts the team list by any column", async () => {
+    const cookie = await signUp("Pat");
+    await post("/app/teams", { name: "Bears", year: "2025", season: "fall" }, { Cookie: cookie });
+    await post("/app/teams", { name: "Astros", year: "2026", season: "spring" }, { Cookie: cookie });
+    const order = (page: string) => [...page.matchAll(/hx-push-url="\/teams\/[^"]+"[^>]*>([^<]+)</g)].map((m) => m[1]);
+    const list = (query: string) => exports.default.fetch(`${ORIGIN}/app/teams${query}`, { headers: { Cookie: cookie } }).then((r) => r.text());
+
+    expect(order(await list(""))).toEqual(["Astros", "Bears"]);
+    expect(order(await list("?sort=name&dir=desc"))).toEqual(["Bears", "Astros"]);
+    const byYear = await list("?sort=year&dir=asc");
+    expect(order(byYear)).toEqual(["Bears", "Astros"]);
+    // The active column's header flips the direction, and the address keeps the sort.
+    expect(byYear).toContain('hx-get="/app/teams?sort=year&amp;dir=desc" hx-replace-url="/?sort=year&amp;dir=desc"');
+
+    const home = await exports.default.fetch(`${ORIGIN}/app/home?sort=name&dir=desc`, { headers: { Cookie: cookie } });
+    expect(order(await home.text())).toEqual(["Bears", "Astros"]);
+    // Adding a team keeps the table's sort.
+    const added = await post("/app/teams", { name: "Cubs", year: "2024", season: "winter", sort: "name", dir: "desc" }, { Cookie: cookie });
+    expect(order(await added.text())).toEqual(["Cubs", "Bears", "Astros"]);
   });
 });
 
@@ -184,7 +215,7 @@ describe("lineup routes", () => {
     const setup = await (await exports.default.fetch(`${ORIGIN}/app/teams/${teamId}/lineup`, { headers: { Cookie: cookie } })).text();
     expect(setup).toContain("10-player defense");
 
-    await post(`/app/teams/${teamId}/settings`, { inningsPerGame: "6", minDefensiveOuts: "6", minInfieldInnings: "2", alignmentMode: "9" }, { Cookie: cookie });
+    await post(`/app/teams/${teamId}/settings`, { name: "Tigers", year: "2026", season: "fall", inningsPerGame: "6", minDefensiveOuts: "6", minInfieldInnings: "2", alignmentMode: "9" }, { Cookie: cookie });
     const page = await (await generate(teamId, cookie, playerIds, { alignmentMode: "10" })).text();
     expect(page).toContain("11 players · 9 fielders");
     expect(page).toContain(">CF<");
@@ -475,20 +506,40 @@ describe("roster routes", () => {
     expect(await res.text()).toContain("Jersey number must be 1–3 digits.");
   });
 
+  it("renames a team and changes its year and season", async () => {
+    const cookie = await signUp("Pat");
+    const teamId = await createTeam(cookie, "Tigers");
+    const settings = `/app/teams/${teamId}/settings`;
+    const form = { inningsPerGame: "6", minDefensiveOuts: "6", minInfieldInnings: "2", alignmentMode: "10" };
+
+    const saved = await (await post(settings, { ...form, name: "Lions", year: "2027", season: "spring" }, { Cookie: cookie })).text();
+    expect(saved).toContain("Saved");
+    // The page heading is updated out of band.
+    expect(saved).toMatch(/id="team-heading" hx-swap-oob="true">\s*<h2[^>]*>Lions<\/h2>\s*<p[^>]*>Spring 2027<\/p>/);
+    const page = await (await exports.default.fetch(`${ORIGIN}/app/teams/${teamId}`, { headers: { Cookie: cookie } })).text();
+    expect(page).toContain('value="Lions"');
+    expect(page).toContain("Spring 2027");
+
+    const blank = await (await post(settings, { ...form, name: " ", year: "2027", season: "spring" }, { Cookie: cookie })).text();
+    expect(blank).toContain("Team name must be 1–80 characters.");
+    expect(blank).not.toContain("team-heading");
+  });
+
   it("saves game settings and rejects impossible minimums", async () => {
     const cookie = await signUp("Pat");
     const teamId = await createTeam(cookie, "Tigers");
     const settings = `/app/teams/${teamId}/settings`;
+    const team = { name: "Tigers", year: "2026", season: "fall" };
 
-    const ok = await (await post(settings, { inningsPerGame: "4", minDefensiveOuts: "6", minInfieldInnings: "1", alignmentMode: "10" }, { Cookie: cookie })).text();
+    const ok = await (await post(settings, { ...team, inningsPerGame: "4", minDefensiveOuts: "6", minInfieldInnings: "1", alignmentMode: "10" }, { Cookie: cookie })).text();
     expect(ok).toContain("Saved");
-    const bad = await (await post(settings, { inningsPerGame: "4", minDefensiveOuts: "13", minInfieldInnings: "1", alignmentMode: "10" }, { Cookie: cookie })).text();
+    const bad = await (await post(settings, { ...team, inningsPerGame: "4", minDefensiveOuts: "13", minInfieldInnings: "1", alignmentMode: "10" }, { Cookie: cookie })).text();
     expect(bad).toContain("from 0 to 12");
-    const tooShort = await (await post(settings, { inningsPerGame: "2", minDefensiveOuts: "3", minInfieldInnings: "1", alignmentMode: "10" }, { Cookie: cookie })).text();
+    const tooShort = await (await post(settings, { ...team, inningsPerGame: "2", minDefensiveOuts: "3", minInfieldInnings: "1", alignmentMode: "10" }, { Cookie: cookie })).text();
     expect(tooShort).toContain("from 3 to 9");
-    const noMode = await (await post(settings, { inningsPerGame: "6", minDefensiveOuts: "6", minInfieldInnings: "1", alignmentMode: "11" }, { Cookie: cookie })).text();
+    const noMode = await (await post(settings, { ...team, inningsPerGame: "6", minDefensiveOuts: "6", minInfieldInnings: "1", alignmentMode: "11" }, { Cookie: cookie })).text();
     expect(noMode).toContain("Choose a 9-player or 10-player defense.");
-    const tooMuchInfield = { inningsPerGame: "3", minDefensiveOuts: "6", minInfieldInnings: "4", alignmentMode: "10" };
+    const tooMuchInfield = { ...team, inningsPerGame: "3", minDefensiveOuts: "6", minInfieldInnings: "4", alignmentMode: "10" };
     expect(await (await post(settings, tooMuchInfield, { Cookie: cookie })).text()).toContain(
       "Minimum infield innings must be a whole number from 0 to 3.",
     );

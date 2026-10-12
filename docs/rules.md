@@ -49,7 +49,7 @@ Positions are defined in one config module. Everything else (rules, generator, v
 | 10+ (team plays a 10-player defense) | P, C, 1B, 2B, 3B, SS, LF, LC, RC, RF | 4 |
 
 - A two-outfielder alignment always uses **LC/RC**, never LF/CF.
-- **Alignment mode** (a 9-player or 10-player defense) is a **team setting**, chosen once in the team's game settings (default: 10). It only applies when 10 or more players are present. A 9-player defense means 3 outfielders and more bench time. With 9 or fewer present, the attendance table above always applies.
+- **Alignment mode** (a 9-player or 10-player defense) is a **team setting**, chosen once in the team's settings (default: 10). It only applies when 10 or more players are present. A 9-player defense means 3 outfielders and more bench time. With 9 or fewer present, the attendance table above always applies.
 - With 7 present, the catcher isn't fielded, so "infield" means P, 1B, 2B, 3B and SS.
 
 ## 3. Game options
