@@ -47,7 +47,7 @@ export function teamTable(teams: TeamSummary[], sort: TeamSort) {
       <input type="hidden" name="dir" value="${sort.dir}">
     </div>
     ${teams.length === 0
-      ? html`<p class="rounded-md border border-dashed border-slate-600 px-4 py-6 text-center text-slate-400">No teams yet. Add one above.</p>`
+      ? html`<p class="rounded-md border border-dashed border-slate-600 px-4 py-6 text-center text-slate-400">No teams yet. Tap New team to add one.</p>`
       : html`<table class="w-full overflow-hidden rounded-md border border-slate-700 bg-slate-900 text-sm">
           <thead class="border-b border-slate-700"><tr>${COLUMNS.map((column) => sortHeader(column, sort))}</tr></thead>
           <tbody class="divide-y divide-slate-700">
@@ -88,20 +88,39 @@ export function teamsPage(user: SessionUser, teams: TeamSummary[], sort: TeamSor
             hx-post="/auth/google/link" hx-swap="none" hx-disabled-elt="this">${busyLabel("Connect Google", "Opening Google…")}</button>
         </div>`
       : ""}
-    <form class="space-y-3 rounded-lg bg-slate-900 p-4 shadow-sm" hx-post="/app/teams" hx-target="#team-table" hx-swap="outerHTML"
+    <button class="min-h-12 w-full rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-600" type="button"
+      aria-haspopup="dialog" hx-on:click="document.getElementById('new-team-dialog').showModal()">New team</button>
+    ${teamTable(teams, sort)}
+    ${newTeamDialog(defaults)}
+  </section>`;
+}
+
+/**
+ * The new team form, in a modal dialog opened by the New team button. Escape,
+ * Cancel or a tap outside closes it; closing clears the form.
+ */
+function newTeamDialog(defaults: { year: number; season: Season }) {
+  return html`<dialog class="m-auto w-[calc(100%-2rem)] max-w-md rounded-lg bg-slate-900 p-0 text-slate-100 shadow-xl backdrop:bg-black/60"
+      id="new-team-dialog" aria-labelledby="new-team-title"
+      hx-on:click="if (event.target === this) this.close()"
+      hx-on:close="this.querySelector('form').reset(); document.getElementById('new-team-error').hidden = true">
+    <form class="space-y-4 p-4" hx-post="/app/teams" hx-target="#team-table" hx-swap="outerHTML"
       hx-include="#team-sort" hx-disabled-elt="find button" data-error-target="new-team-error"
-      hx-on::after-request="if (event.detail.successful) this.reset()">
-      <h3 class="font-semibold">New team</h3>
+      hx-on::after-request="if (event.detail.successful) this.closest('dialog').close()">
+      <h3 class="text-lg font-semibold" id="new-team-title">New team</h3>
       <label class="block text-sm font-medium">Team name
         <input class="${fieldClass} mt-1 block w-full" type="text" name="name" placeholder="Team name" maxlength="80"
-          autocapitalize="words" autocomplete="off" enterkeyhint="done" required>
+          autocapitalize="words" autocomplete="off" enterkeyhint="done" autofocus required>
       </label>
       <div class="flex flex-wrap items-end gap-4">
         ${yearSeasonFields(defaults.year, defaults.season)}
-        <button class="min-h-11 rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-600 disabled:opacity-60" type="submit">${busyLabel("Add team", "Adding…")}</button>
       </div>
       <p class="rounded-md bg-red-950 px-3 py-2 text-sm text-red-300" id="new-team-error" role="alert" hidden></p>
+      <div class="flex justify-end gap-2">
+        <button class="min-h-11 rounded-md border border-slate-600 px-4 py-2 font-medium hover:bg-slate-800 disabled:opacity-60" type="button"
+          hx-on:click="this.closest('dialog').close()">Cancel</button>
+        <button class="min-h-11 rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-600 disabled:opacity-60" type="submit">${busyLabel("Add team", "Adding…")}</button>
+      </div>
     </form>
-    ${teamTable(teams, sort)}
-  </section>`;
+  </dialog>`;
 }
