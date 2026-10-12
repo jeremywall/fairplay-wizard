@@ -88,8 +88,10 @@ export function teamsPage(user: SessionUser, teams: TeamSummary[], sort: TeamSor
             hx-post="/auth/google/link" hx-swap="none" hx-disabled-elt="this">${busyLabel("Connect Google", "Opening Google…")}</button>
         </div>`
       : ""}
-    <button class="min-h-12 w-full rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-600" type="button"
-      aria-haspopup="dialog" hx-on:click="document.getElementById('new-team-dialog').showModal()">New team</button>
+    <div class="flex justify-end">
+      <button class="min-h-11 rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600" type="button"
+        aria-haspopup="dialog" hx-on:click="document.getElementById('new-team-dialog').showModal()">+ New team</button>
+    </div>
     ${teamTable(teams, sort)}
     ${newTeamDialog(defaults)}
   </section>`;
