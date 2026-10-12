@@ -8,7 +8,7 @@ This file gives Claude Code guidance for working in this repository.
 
 - **Users:** coaches (head and assistant) only. There are no parent, player, or league-admin roles.
 - **Sport:** baseball first, with softball as a close variant. Rules follow Little League and local-league conventions, **not** MLB rules (see Domain rules).
-- **Status:** early development. Sign-up/sign-in, teams, game settings and roster management work end to end. The lineup generator works (attendance + options → lineup grid, player summary, fairness readout, rule check, Regenerate). Lineups can be saved as games, finalized, reopened or deleted; the team page shows games and season stats, and the generator uses season history (SR-3). Not built yet: manual edits to a lineup.
+- **Status:** early development. Sign-up/sign-in, teams, game settings and roster management work end to end. The lineup generator works (attendance + options → lineup grid, player summary, fairness readout, rule check, Regenerate). Positions can be edited by hand (swaps, with the rule check re-run on each change), before saving or on a planned game. Lineups can be saved as games, finalized, reopened or deleted; the team page shows games and season stats, and the generator uses season history (SR-3).
 
 ## Tech stack (all Cloudflare)
 
@@ -41,7 +41,7 @@ This file gives Claude Code guidance for working in this repository.
 /public                   # Static assets served by the Worker (Workers Static Assets)
   index.html              # SPA shell (loads HTMX + built CSS), served for every page address
   manifest.webmanifest    # Add to Home Screen (standalone app), with /icons
-  /js/app.js              # Small UI glue: load the screen for the address, lineup setup form
+  /js/app.js              # Small UI glue: load the screen for the address, show turned-down requests' messages, lineup setup form
   /js/htmx.min.js, /css   # Build output, gitignored
 /.github/workflows        # CI and deploy (ci-deploy.yml)
 /src

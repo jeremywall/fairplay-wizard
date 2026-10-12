@@ -8,13 +8,16 @@ import type { SeasonTotals } from "../domain/season";
 import {
   backToTeam,
   lineupDescription,
+  lineupEditor,
   lineupGrid,
+  errorSlot,
   primaryButton,
+  ruleCheckFooter,
   ruleCheckPanel,
   secondaryButton,
   summaryTable,
 } from "./lineup";
-import { busyLabel, nav } from "./ui";
+import { busyLabel, nav, textLink } from "./ui";
 
 const statusBadge = {
   planned: html`<span class="rounded-full bg-slate-700 px-2 py-0.5 text-xs font-medium text-slate-200">Planned</span>`,
@@ -110,7 +113,7 @@ export function gamePage(
 
     ${game.status === "final"
       ? html`<div class="space-y-2 rounded-lg bg-slate-900 p-4 shadow-sm">
-          <p>This game is final and counts toward season stats.</p>
+          <p>This game is final and counts toward season stats. Reopen it to change positions.</p>
           <button class="${secondaryButton}" hx-post="${base}/reopen" hx-target="#main" hx-swap="innerHTML" hx-disabled-elt="this"
             hx-confirm="Reopen this game? It will stop counting toward season stats until you finalize it again.">${busyLabel("Reopen game", "Reopening…")}</button>
         </div>`
@@ -121,12 +124,39 @@ export function gamePage(
         </div>`}
 
     ${lineupGrid(lineup)}
-    ${ruleCheckPanel(violations, report)}
+    ${game.status === "planned"
+      ? html`<button class="${secondaryButton}" ${nav(`/teams/${teamId}/games/${game.id}/edit`)}>Edit positions</button>`
+      : ""}
+    ${ruleCheckPanel(violations, report, game.status === "planned" ? ruleCheckFooter.planned : undefined)}
     ${summaryTable(lineup)}
 
     ${game.status === "planned"
       ? html`<button class="inline-flex min-h-11 items-center px-1 text-sm text-red-300 hover:underline disabled:opacity-60" hx-delete="${base}"
           hx-target="#main" hx-swap="innerHTML show:window:top" hx-disabled-elt="this" hx-confirm="Delete this game?">${busyLabel("Delete game", "Deleting…")}</button>`
       : ""}
+  </section>`;
+}
+
+/** Manual edits to a planned game: the lineup editor with Save changes and Cancel. */
+export function gameEditPage(teamId: string, game: GameDetail, lineup: Lineup, violations: Violation[], report: FairnessReport) {
+  const base = `/app/teams/${teamId}/games/${game.id}`;
+  const gameUrl = `/teams/${teamId}/games/${game.id}`;
+  return html`<section class="space-y-6">
+    <div>
+      <button class="${textLink}" ${nav(gameUrl)}>← Back to game</button>
+      <h2 class="text-2xl font-semibold">Edit positions: ${gameTitle(game)}</h2>
+      <p class="text-sm text-slate-400">${lineupDescription(lineup)}</p>
+    </div>
+
+    ${lineupEditor({ checkUrl: `${base}/check`, lineup, violations, report, footer: ruleCheckFooter.edited })}
+
+    <div class="space-y-3">
+      ${errorSlot("save-error")}
+      <div class="flex flex-wrap gap-2">
+        <button class="${primaryButton}" hx-post="${base}/lineup" hx-include="#lineup-edit" hx-sync="#lineup-edit:queue all" hx-target="#main"
+          hx-swap="innerHTML show:window:top" hx-disabled-elt="this" data-error-target="save-error">${busyLabel("Save changes", "Saving…")}</button>
+        <button class="${secondaryButton}" ${nav(gameUrl)}>Cancel</button>
+      </div>
+    </div>
   </section>`;
 }

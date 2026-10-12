@@ -11,7 +11,7 @@ The hard and soft rules come from the earlier planner project ([baseball-softbal
 3. **Review:** the coach sees the lineup grid, a player summary, a fairness readout (§7), and a rule check listing any hard-rule violations and soft-rule notices.
 4. **Adjust if needed:**
    - **Regenerate** produces a different random lineup with the same attendance and options. This is the fast path.
-   - **Manual edits** let the coach change a player's position in a given inning (for example, by swapping two players). After every edit, the rule check re-runs and shows any violations. A hard-rule violation is shown prominently as an error, but it **does not block** saving. The coach has the final say.
+   - **Manual edits** let the coach change a player's position in a given inning. Picking a position that a teammate holds that inning **swaps** the two players, so every position stays filled. Moving a player to the bench displaces nobody, which can leave a position empty (an HR-7 error). After every edit, the rule check re-runs and shows any violations. A hard-rule violation is shown prominently as an error, but it **does not block** saving. The coach has the final say. Edits can be made before saving and on a saved game while it's planned. A final game must be reopened first.
 5. **Save** the lineup as a game (date and optional opponent). Saved games are listed on the team page.
 6. **Finalize** the game after it's played. Finalizing makes the game count toward season stats (§9) and SR-3. A finalized game can be **reopened** (it stops counting until finalized again), and a planned game can be deleted.
 
