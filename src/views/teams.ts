@@ -74,9 +74,13 @@ export interface TeamsPageOptions {
 
 export function teamsPage(user: SessionUser, teams: TeamSummary[], sort: TeamSort, defaults: { year: number; season: Season }, opts: TeamsPageOptions = {}) {
   return html`<section class="mx-auto max-w-xl space-y-6">
-    <div class="flex items-center justify-between">
+    <div class="flex flex-wrap items-center justify-between gap-2">
       <h2 class="text-xl font-semibold">${user.name}'s teams</h2>
-      <button class="${textLink} px-2" hx-post="/auth/logout" hx-swap="none" hx-disabled-elt="this">Sign out</button>
+      <div class="flex items-center gap-2">
+        <button class="min-h-11 rounded-md bg-emerald-700 px-3 text-sm font-medium text-white hover:bg-emerald-600" type="button"
+          aria-haspopup="dialog" hx-on:click="document.getElementById('new-team-dialog').showModal()">+ New team</button>
+        <button class="${textLink} px-2" hx-post="/auth/logout" hx-swap="none" hx-disabled-elt="this">Sign out</button>
+      </div>
     </div>
     ${opts.notice
       ? html`<p class="rounded-md px-3 py-2 text-sm ${opts.notice.error ? "bg-red-950 text-red-300" : "bg-emerald-950 text-emerald-200"}" role="status">${opts.notice.text}</p>`
@@ -88,10 +92,6 @@ export function teamsPage(user: SessionUser, teams: TeamSummary[], sort: TeamSor
             hx-post="/auth/google/link" hx-swap="none" hx-disabled-elt="this">${busyLabel("Connect Google", "Opening Google…")}</button>
         </div>`
       : ""}
-    <div class="flex justify-end">
-      <button class="min-h-11 rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600" type="button"
-        aria-haspopup="dialog" hx-on:click="document.getElementById('new-team-dialog').showModal()">+ New team</button>
-    </div>
     ${teamTable(teams, sort)}
     ${newTeamDialog(defaults)}
   </section>`;
