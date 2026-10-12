@@ -79,7 +79,8 @@ export function teamsPage(user: SessionUser, teams: TeamSummary[], sort: TeamSor
       <div class="flex items-center gap-2">
         <button class="min-h-11 rounded-md bg-emerald-700 px-3 text-sm font-medium text-white hover:bg-emerald-600" type="button"
           aria-haspopup="dialog" hx-on:click="document.getElementById('new-team-dialog').showModal()">+ New team</button>
-        <button class="${textLink} px-2" hx-post="/auth/logout" hx-swap="none" hx-disabled-elt="this">Sign out</button>
+        <button class="min-h-11 rounded-md border border-slate-600 bg-slate-800 px-3 text-sm font-medium hover:bg-slate-700 disabled:opacity-60"
+          hx-post="/auth/logout" hx-swap="none" hx-disabled-elt="this">${busyLabel("Sign out", "Signing out…")}</button>
       </div>
     </div>
     ${opts.notice
