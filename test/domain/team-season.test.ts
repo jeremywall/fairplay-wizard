@@ -18,9 +18,11 @@ describe("team year and season", () => {
   });
 
   it("falls back to the default sort for unknown columns", () => {
-    expect(readTeamSort("bogus", "asc")).toEqual({ key: "year", dir: "desc" });
+    expect(readTeamSort("bogus", "asc")).toEqual({ key: "season", dir: "desc" });
+    // Year and season were separate columns before; old links get the default.
+    expect(readTeamSort("year", "asc")).toEqual({ key: "season", dir: "desc" });
     expect(readTeamSort("name")).toEqual({ key: "name", dir: "asc" });
-    expect(readTeamSort("season", "desc")).toEqual({ key: "season", dir: "desc" });
+    expect(readTeamSort("season")).toEqual({ key: "season", dir: "desc" });
   });
 });
 
@@ -31,7 +33,7 @@ describe("sortTeams", () => {
     { name: "Astros", year: 2026, season: "fall", role: "head" },
     { name: "Bears", year: 2026, season: "spring", role: "assistant" },
   ] as const;
-  const names = (key: "name" | "year" | "season" | "role", dir: "asc" | "desc") => sortTeams(teams, { key, dir }).map((t) => t.name);
+  const names = (key: "name" | "season" | "role", dir: "asc" | "desc") => sortTeams(teams, { key, dir }).map((t) => t.name);
 
   it("sorts by name, ignoring case", () => {
     expect(names("name", "asc")).toEqual(["Astros", "Bears", "cubs", "Tigers"]);
@@ -39,12 +41,8 @@ describe("sortTeams", () => {
   });
 
   it("sorts by year, then season within the year, then name", () => {
-    expect(names("year", "desc")).toEqual(["Astros", "Bears", "Tigers", "cubs"]);
-    expect(names("year", "asc")).toEqual(["cubs", "Bears", "Tigers", "Astros"]);
-  });
-
-  it("sorts seasons in calendar order, newest first within a season", () => {
-    expect(names("season", "asc")).toEqual(["Bears", "Tigers", "Astros", "cubs"]);
+    expect(names("season", "desc")).toEqual(["Astros", "Bears", "Tigers", "cubs"]);
+    expect(names("season", "asc")).toEqual(["cubs", "Bears", "Tigers", "Astros"]);
   });
 
   it("sorts by role, head coach first", () => {

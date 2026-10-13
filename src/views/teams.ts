@@ -1,6 +1,6 @@
 import { html } from "hono/html";
 import type { TeamSummary } from "../db/teams";
-import { firstDir, MAX_YEAR, MIN_YEAR, SEASON_LABELS, SEASONS, sortTeams } from "../domain/team-season";
+import { firstDir, MAX_YEAR, MIN_YEAR, SEASON_LABELS, seasonLabel, SEASONS, sortTeams } from "../domain/team-season";
 import type { Season, TeamSort, TeamSortKey } from "../domain/team-season";
 import type { SessionUser } from "../types";
 import { busyLabel, inputText, nav, textLink } from "./ui";
@@ -22,7 +22,6 @@ export function yearSeasonFields(year: number, season: Season | "") {
 
 const COLUMNS: { key: TeamSortKey; label: string; class: string }[] = [
   { key: "name", label: "Team", class: "w-full" },
-  { key: "year", label: "Year", class: "" },
   { key: "season", label: "Season", class: "" },
   { key: "role", label: "Role", class: "" },
 ];
@@ -56,8 +55,7 @@ export function teamTable(teams: TeamSummary[], sort: TeamSort) {
                 <td class="p-0">
                   <button class="min-h-12 w-full px-3 py-2 text-left text-base font-medium text-emerald-400" ${nav(`/teams/${team.id}`)}>${team.name}</button>
                 </td>
-                <td class="px-3 py-2 tabular-nums text-slate-300">${team.year}</td>
-                <td class="px-3 py-2 text-slate-300">${SEASON_LABELS[team.season]}</td>
+                <td class="whitespace-nowrap px-3 py-2 tabular-nums text-slate-300">${seasonLabel(team)}</td>
                 <td class="px-3 py-2 text-slate-400">${team.role === "head" ? "Head" : "Assistant"}</td>
               </tr>`,
             )}

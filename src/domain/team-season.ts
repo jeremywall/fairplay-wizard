@@ -41,7 +41,8 @@ export function readTeamInfo(form: Record<string, unknown>): { info: TeamInfo } 
   return { info };
 }
 
-export const TEAM_SORT_KEYS = ["name", "year", "season", "role"] as const;
+/** Team list columns. "season" is the year and season together, in date order. */
+export const TEAM_SORT_KEYS = ["name", "season", "role"] as const;
 export type TeamSortKey = (typeof TEAM_SORT_KEYS)[number];
 export type SortDir = "asc" | "desc";
 
@@ -50,12 +51,17 @@ export interface TeamSort {
   dir: SortDir;
 }
 
-/** Newest first: by year and season, latest first. */
-export const DEFAULT_TEAM_SORT: TeamSort = { key: "year", dir: "desc" };
+/** Newest season first. */
+export const DEFAULT_TEAM_SORT: TeamSort = { key: "season", dir: "desc" };
 
-/** The direction a column sorts in when first chosen: dates newest first, text A–Z. */
+/** The direction a column sorts in when first chosen: seasons newest first, text A–Z. */
 export function firstDir(key: TeamSortKey): SortDir {
-  return key === "year" ? "desc" : "asc";
+  return key === "season" ? "desc" : "asc";
+}
+
+/** A team's year and season as one label, e.g. "Fall 2026". */
+export function seasonLabel(team: { year: number; season: Season }): string {
+  return `${SEASON_LABELS[team.season]} ${team.year}`;
 }
 
 /** Reads a sort from query values, falling back to the default for anything unknown. */
@@ -84,8 +90,7 @@ export function sortTeams<T extends SortableTeam>(teams: readonly T[], sort: Tea
   const sign = sort.dir === "asc" ? 1 : -1;
   const primary: Record<TeamSortKey, (a: T, b: T) => number> = {
     name: byName,
-    year: byWhen,
-    season: (a, b) => SEASON_ORDER[a.season] - SEASON_ORDER[b.season],
+    season: byWhen,
     role: (a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role],
   };
   return [...teams].sort((a, b) => sign * primary[sort.key](a, b) || -byWhen(a, b) || byName(a, b));

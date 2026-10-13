@@ -126,7 +126,7 @@ describe("app routes", () => {
     const fragment = await created.text();
     expect(fragment).toContain("&lt;Tigers&gt;");
     expect(fragment).not.toContain("<Tigers>");
-    expect(fragment).toMatch(/2026<\/td>\s*<td[^>]*>Summer<\/td>/);
+    expect(fragment).toContain(">Summer 2026</td>");
 
     const home = await exports.default.fetch(`${ORIGIN}/app/home`, { headers: { Cookie: cookie } });
     expect(await home.text()).toContain("Pat's teams");
@@ -150,10 +150,10 @@ describe("app routes", () => {
 
     expect(order(await list(""))).toEqual(["Astros", "Bears"]);
     expect(order(await list("?sort=name&dir=desc"))).toEqual(["Bears", "Astros"]);
-    const byYear = await list("?sort=year&dir=asc");
-    expect(order(byYear)).toEqual(["Bears", "Astros"]);
+    const bySeason = await list("?sort=season&dir=asc");
+    expect(order(bySeason)).toEqual(["Bears", "Astros"]);
     // The active column's header flips the direction, and the address keeps the sort.
-    expect(byYear).toContain('hx-get="/app/teams?sort=year&amp;dir=desc" hx-replace-url="/?sort=year&amp;dir=desc"');
+    expect(bySeason).toContain('hx-get="/app/teams?sort=season&amp;dir=desc" hx-replace-url="/?sort=season&amp;dir=desc"');
 
     const home = await exports.default.fetch(`${ORIGIN}/app/home?sort=name&dir=desc`, { headers: { Cookie: cookie } });
     expect(order(await home.text())).toEqual(["Bears", "Astros"]);
