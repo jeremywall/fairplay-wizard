@@ -48,14 +48,14 @@ export function seasonLabel(team: { year: number; season: Season }): string {
 }
 
 /**
- * Sorts teams in date order: by year, then by season within the year
- * (winter, spring, summer, fall), then by name.
+ * Sorts teams newest first: by year, then by season within the year
+ * (fall, summer, spring, winter), then A–Z by name.
  */
 export function sortTeamsByDate<T extends TeamInfo>(teams: readonly T[]): T[] {
   return [...teams].sort(
     (a, b) =>
-      a.year - b.year ||
-      SEASONS.indexOf(a.season) - SEASONS.indexOf(b.season) ||
+      b.year - a.year ||
+      SEASONS.indexOf(b.season) - SEASONS.indexOf(a.season) ||
       a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
   );
 }

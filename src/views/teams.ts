@@ -22,7 +22,7 @@ export function yearSeasonFields(year: number, season: Season | "") {
 
 const header = "px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400";
 
-/** The coach's teams in date order, oldest season first. */
+/** The coach's teams, newest season first. */
 export function teamTable(teams: TeamSummary[]) {
   return html`<section id="team-table">
     ${teams.length === 0

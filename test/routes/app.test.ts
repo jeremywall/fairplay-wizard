@@ -141,18 +141,18 @@ describe("app routes", () => {
     expect(badYear.status).toBe(422);
   });
 
-  it("lists teams in date order, oldest season first", async () => {
+  it("lists teams newest season first", async () => {
     const cookie = await signUp("Pat");
     await post("/app/teams", { name: "Astros", year: "2026", season: "fall" }, { Cookie: cookie });
     await post("/app/teams", { name: "Bears", year: "2026", season: "winter" }, { Cookie: cookie });
     const order = (page: string) => [...page.matchAll(/hx-push-url="\/teams\/[^"]+"[^>]*>([^<]+)</g)].map((m) => m[1]);
 
     const home = await (await exports.default.fetch(`${ORIGIN}/app/home`, { headers: { Cookie: cookie } })).text();
-    expect(order(home)).toEqual(["Bears", "Astros"]);
+    expect(order(home)).toEqual(["Astros", "Bears"]);
     expect(home).not.toContain("sort=");
-    // The table returned after adding a team is in date order too.
+    // The table returned after adding a team is in the same order.
     const added = await post("/app/teams", { name: "Cubs", year: "2025", season: "summer" }, { Cookie: cookie });
-    expect(order(await added.text())).toEqual(["Cubs", "Bears", "Astros"]);
+    expect(order(await added.text())).toEqual(["Astros", "Bears", "Cubs"]);
   });
 });
 

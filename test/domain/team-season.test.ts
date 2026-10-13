@@ -23,7 +23,7 @@ describe("team year and season", () => {
 });
 
 describe("sortTeamsByDate", () => {
-  it("orders by year, then winter, spring, summer, fall, then name", () => {
+  it("puts the newest season first, then A–Z by name within a season", () => {
     const teams = [
       { name: "Fall 26", year: 2026, season: "fall" },
       { name: "cubs", year: 2026, season: "spring" },
@@ -32,6 +32,6 @@ describe("sortTeamsByDate", () => {
       { name: "Fall 25", year: 2025, season: "fall" },
       { name: "Bears", year: 2026, season: "spring" },
     ] as const;
-    expect(sortTeamsByDate(teams).map((t) => t.name)).toEqual(["Fall 25", "Winter 26", "Bears", "cubs", "Summer 26", "Fall 26"]);
+    expect(sortTeamsByDate(teams).map((t) => t.name)).toEqual(["Fall 26", "Summer 26", "Bears", "cubs", "Winter 26", "Fall 25"]);
   });
 });
