@@ -3,7 +3,7 @@ import type { GameSummary } from "../db/games";
 import type { Player } from "../db/players";
 import type { TeamDetails } from "../db/teams";
 import type { SeasonTotals } from "../domain/season";
-import { SEASON_LABELS } from "../domain/team-season";
+import { seasonLabel } from "../domain/team-season";
 import { gamesList, seasonStats } from "./games";
 import { yearSeasonFields } from "./teams";
 import { busyLabel, inputText, nav, textLink } from "./ui";
@@ -33,7 +33,7 @@ export function teamPage(team: TeamDetails, players: Player[], games: GameSummar
 export function teamHeading(team: Pick<TeamDetails, "name" | "year" | "season">, oob = false) {
   return html`<div id="team-heading" ${oob ? html`hx-swap-oob="true"` : ""}>
     <h2 class="text-2xl font-semibold">${team.name}</h2>
-    <p class="text-sm text-slate-400">${SEASON_LABELS[team.season]} ${team.year}</p>
+    <p class="text-sm text-slate-400">${seasonLabel(team)}</p>
   </div>`;
 }
 

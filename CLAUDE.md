@@ -8,7 +8,7 @@ This file gives Claude Code guidance for working in this repository.
 
 - **Users:** coaches (head and assistant) only. There are no parent, player, or league-admin roles.
 - **Sport:** baseball first, with softball as a close variant. Rules follow Little League and local-league conventions, **not** MLB rules (see Domain rules).
-- **Status:** early development. Sign-up/sign-in, teams (with a year and season, a sortable team list, and renaming in team settings), game settings and roster management work end to end. The lineup generator works (attendance + options → lineup grid, player summary, fairness readout, rule check, Regenerate). Positions can be edited by hand (swaps, with the rule check re-run on each change), before saving or on a planned game. Lineups can be saved as games, finalized, reopened or deleted; the team page shows games and season stats, and the generator uses season history (SR-3).
+- **Status:** early development. Sign-up/sign-in, teams (with a year and season, listed in date order, and renaming in team settings), game settings and roster management work end to end. The lineup generator works (attendance + options → lineup grid, player summary, fairness readout, rule check, Regenerate). Positions can be edited by hand (swaps, with the rule check re-run on each change), before saving or on a planned game. Lineups can be saved as games, finalized, reopened or deleted; the team page shows games and season stats, and the generator uses season history (SR-3).
 
 ## Tech stack (all Cloudflare)
 

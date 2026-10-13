@@ -126,7 +126,7 @@ describe("app routes", () => {
     const fragment = await created.text();
     expect(fragment).toContain("&lt;Tigers&gt;");
     expect(fragment).not.toContain("<Tigers>");
-    expect(fragment).toMatch(/2026<\/td>\s*<td[^>]*>Summer<\/td>/);
+    expect(fragment).toContain(">Summer 2026</td>");
 
     const home = await exports.default.fetch(`${ORIGIN}/app/home`, { headers: { Cookie: cookie } });
     expect(await home.text()).toContain("Pat's teams");
@@ -141,25 +141,18 @@ describe("app routes", () => {
     expect(badYear.status).toBe(422);
   });
 
-  it("sorts the team list by any column", async () => {
+  it("lists teams newest season first", async () => {
     const cookie = await signUp("Pat");
-    await post("/app/teams", { name: "Bears", year: "2025", season: "fall" }, { Cookie: cookie });
-    await post("/app/teams", { name: "Astros", year: "2026", season: "spring" }, { Cookie: cookie });
+    await post("/app/teams", { name: "Astros", year: "2026", season: "fall" }, { Cookie: cookie });
+    await post("/app/teams", { name: "Bears", year: "2026", season: "winter" }, { Cookie: cookie });
     const order = (page: string) => [...page.matchAll(/hx-push-url="\/teams\/[^"]+"[^>]*>([^<]+)</g)].map((m) => m[1]);
-    const list = (query: string) => exports.default.fetch(`${ORIGIN}/app/teams${query}`, { headers: { Cookie: cookie } }).then((r) => r.text());
 
-    expect(order(await list(""))).toEqual(["Astros", "Bears"]);
-    expect(order(await list("?sort=name&dir=desc"))).toEqual(["Bears", "Astros"]);
-    const byYear = await list("?sort=year&dir=asc");
-    expect(order(byYear)).toEqual(["Bears", "Astros"]);
-    // The active column's header flips the direction, and the address keeps the sort.
-    expect(byYear).toContain('hx-get="/app/teams?sort=year&amp;dir=desc" hx-replace-url="/?sort=year&amp;dir=desc"');
-
-    const home = await exports.default.fetch(`${ORIGIN}/app/home?sort=name&dir=desc`, { headers: { Cookie: cookie } });
-    expect(order(await home.text())).toEqual(["Bears", "Astros"]);
-    // Adding a team keeps the table's sort.
-    const added = await post("/app/teams", { name: "Cubs", year: "2024", season: "winter", sort: "name", dir: "desc" }, { Cookie: cookie });
-    expect(order(await added.text())).toEqual(["Cubs", "Bears", "Astros"]);
+    const home = await (await exports.default.fetch(`${ORIGIN}/app/home`, { headers: { Cookie: cookie } })).text();
+    expect(order(home)).toEqual(["Astros", "Bears"]);
+    expect(home).not.toContain("sort=");
+    // The table returned after adding a team is in the same order.
+    const added = await post("/app/teams", { name: "Cubs", year: "2025", season: "summer" }, { Cookie: cookie });
+    expect(order(await added.text())).toEqual(["Astros", "Bears", "Cubs"]);
   });
 });
 

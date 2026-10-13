@@ -1,9 +1,10 @@
-// The year and season a team plays in, and the sort orders for the team list.
+// The year and season a team plays in, and the date order of the team list.
 
-export const SEASONS = ["spring", "summer", "fall", "winter"] as const;
+// In calendar order within a year: winter games start in January.
+export const SEASONS = ["winter", "spring", "summer", "fall"] as const;
 export type Season = (typeof SEASONS)[number];
 
-export const SEASON_LABELS: Record<Season, string> = { spring: "Spring", summer: "Summer", fall: "Fall", winter: "Winter" };
+export const SEASON_LABELS: Record<Season, string> = { winter: "Winter", spring: "Spring", summer: "Summer", fall: "Fall" };
 
 export const MIN_YEAR = 2000;
 export const MAX_YEAR = 2100;
@@ -41,52 +42,20 @@ export function readTeamInfo(form: Record<string, unknown>): { info: TeamInfo } 
   return { info };
 }
 
-export const TEAM_SORT_KEYS = ["name", "year", "season", "role"] as const;
-export type TeamSortKey = (typeof TEAM_SORT_KEYS)[number];
-export type SortDir = "asc" | "desc";
-
-export interface TeamSort {
-  key: TeamSortKey;
-  dir: SortDir;
+/** A team's year and season as one label, e.g. "Fall 2026". */
+export function seasonLabel(team: { year: number; season: Season }): string {
+  return `${SEASON_LABELS[team.season]} ${team.year}`;
 }
-
-/** Newest first: by year and season, latest first. */
-export const DEFAULT_TEAM_SORT: TeamSort = { key: "year", dir: "desc" };
-
-/** The direction a column sorts in when first chosen: dates newest first, text A–Z. */
-export function firstDir(key: TeamSortKey): SortDir {
-  return key === "year" ? "desc" : "asc";
-}
-
-/** Reads a sort from query values, falling back to the default for anything unknown. */
-export function readTeamSort(sort?: string, dir?: string): TeamSort {
-  if (!(TEAM_SORT_KEYS as readonly string[]).includes(sort ?? "")) return DEFAULT_TEAM_SORT;
-  const key = sort as TeamSortKey;
-  return { key, dir: dir === "asc" || dir === "desc" ? dir : firstDir(key) };
-}
-
-interface SortableTeam extends TeamInfo {
-  role: "head" | "assistant";
-}
-
-// Seasons in calendar order within a year (winter games start in January).
-const SEASON_ORDER: Record<Season, number> = { winter: 0, spring: 1, summer: 2, fall: 3 };
-const ROLE_ORDER = { head: 0, assistant: 1 };
-
-const byName = (a: SortableTeam, b: SortableTeam) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-const byWhen = (a: SortableTeam, b: SortableTeam) => a.year - b.year || SEASON_ORDER[a.season] - SEASON_ORDER[b.season];
 
 /**
- * Sorts teams by the chosen column. Ties fall back to newest season first,
- * then name, so the order is stable whichever column is chosen.
+ * Sorts teams newest first: by year, then by season within the year
+ * (fall, summer, spring, winter), then A–Z by name.
  */
-export function sortTeams<T extends SortableTeam>(teams: readonly T[], sort: TeamSort): T[] {
-  const sign = sort.dir === "asc" ? 1 : -1;
-  const primary: Record<TeamSortKey, (a: T, b: T) => number> = {
-    name: byName,
-    year: byWhen,
-    season: (a, b) => SEASON_ORDER[a.season] - SEASON_ORDER[b.season],
-    role: (a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role],
-  };
-  return [...teams].sort((a, b) => sign * primary[sort.key](a, b) || -byWhen(a, b) || byName(a, b));
+export function sortTeamsByDate<T extends TeamInfo>(teams: readonly T[]): T[] {
+  return [...teams].sort(
+    (a, b) =>
+      b.year - a.year ||
+      SEASONS.indexOf(b.season) - SEASONS.indexOf(a.season) ||
+      a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+  );
 }

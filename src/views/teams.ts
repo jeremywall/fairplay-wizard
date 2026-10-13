@@ -1,7 +1,7 @@
 import { html } from "hono/html";
 import type { TeamSummary } from "../db/teams";
-import { firstDir, MAX_YEAR, MIN_YEAR, SEASON_LABELS, SEASONS, sortTeams } from "../domain/team-season";
-import type { Season, TeamSort, TeamSortKey } from "../domain/team-season";
+import { MAX_YEAR, MIN_YEAR, SEASON_LABELS, seasonLabel, SEASONS, sortTeamsByDate } from "../domain/team-season";
+import type { Season } from "../domain/team-season";
 import type { SessionUser } from "../types";
 import { busyLabel, inputText, nav, textLink } from "./ui";
 
@@ -20,44 +20,24 @@ export function yearSeasonFields(year: number, season: Season | "") {
     </label>`;
 }
 
-const COLUMNS: { key: TeamSortKey; label: string; class: string }[] = [
-  { key: "name", label: "Team", class: "w-full" },
-  { key: "year", label: "Year", class: "" },
-  { key: "season", label: "Season", class: "" },
-  { key: "role", label: "Role", class: "" },
-];
+const header = "px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400";
 
-function sortHeader(column: (typeof COLUMNS)[number], sort: TeamSort) {
-  const active = column.key === sort.key;
-  const dir = active ? (sort.dir === "asc" ? "desc" : "asc") : firstDir(column.key);
-  const query = `?sort=${column.key}&dir=${dir}`;
-  return html`<th class="${column.class} p-0 text-left" scope="col" aria-sort="${active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}">
-    <button class="flex min-h-11 w-full items-center gap-1 px-3 text-xs font-semibold uppercase tracking-wide ${active ? "text-slate-100" : "text-slate-400"} hover:text-slate-100"
-      hx-get="/app/teams${query}" hx-replace-url="/${query}" hx-target="#team-table" hx-swap="outerHTML">
-      ${column.label}<span aria-hidden="true" class="${active ? "" : "invisible"}">${sort.dir === "asc" || !active ? "▲" : "▼"}</span>
-    </button>
-  </th>`;
-}
-
-/** The coach's teams as a table sortable by any column. */
-export function teamTable(teams: TeamSummary[], sort: TeamSort) {
+/** The coach's teams, newest season first. */
+export function teamTable(teams: TeamSummary[]) {
   return html`<section id="team-table">
-    <div id="team-sort" hidden>
-      <input type="hidden" name="sort" value="${sort.key}">
-      <input type="hidden" name="dir" value="${sort.dir}">
-    </div>
     ${teams.length === 0
       ? html`<p class="rounded-md border border-dashed border-slate-600 px-4 py-6 text-center text-slate-400">No teams yet. Tap New team to add one.</p>`
       : html`<table class="w-full overflow-hidden rounded-md border border-slate-700 bg-slate-900 text-sm">
-          <thead class="border-b border-slate-700"><tr>${COLUMNS.map((column) => sortHeader(column, sort))}</tr></thead>
+          <thead class="border-b border-slate-700">
+            <tr><th class="${header} w-full" scope="col">Team</th><th class="${header}" scope="col">Season</th><th class="${header}" scope="col">Role</th></tr>
+          </thead>
           <tbody class="divide-y divide-slate-700">
-            ${sortTeams(teams, sort).map(
+            ${sortTeamsByDate(teams).map(
               (team) => html`<tr class="hover:bg-slate-800">
                 <td class="p-0">
                   <button class="min-h-12 w-full px-3 py-2 text-left text-base font-medium text-emerald-400" ${nav(`/teams/${team.id}`)}>${team.name}</button>
                 </td>
-                <td class="px-3 py-2 tabular-nums text-slate-300">${team.year}</td>
-                <td class="px-3 py-2 text-slate-300">${SEASON_LABELS[team.season]}</td>
+                <td class="whitespace-nowrap px-3 py-2 tabular-nums text-slate-300">${seasonLabel(team)}</td>
                 <td class="px-3 py-2 text-slate-400">${team.role === "head" ? "Head" : "Assistant"}</td>
               </tr>`,
             )}
@@ -72,7 +52,7 @@ export interface TeamsPageOptions {
   notice?: { error?: boolean; text: string };
 }
 
-export function teamsPage(user: SessionUser, teams: TeamSummary[], sort: TeamSort, defaults: { year: number; season: Season }, opts: TeamsPageOptions = {}) {
+export function teamsPage(user: SessionUser, teams: TeamSummary[], defaults: { year: number; season: Season }, opts: TeamsPageOptions = {}) {
   return html`<section class="mx-auto max-w-xl space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <h2 class="text-xl font-semibold">${user.name}'s teams</h2>
@@ -93,7 +73,7 @@ export function teamsPage(user: SessionUser, teams: TeamSummary[], sort: TeamSor
             hx-post="/auth/google/link" hx-swap="none" hx-disabled-elt="this">${busyLabel("Connect Google", "Opening Google…")}</button>
         </div>`
       : ""}
-    ${teamTable(teams, sort)}
+    ${teamTable(teams)}
     ${newTeamDialog(defaults)}
   </section>`;
 }
@@ -108,7 +88,7 @@ function newTeamDialog(defaults: { year: number; season: Season }) {
       hx-on:click="if (event.target === this) this.close()"
       hx-on:close="this.querySelector('form').reset(); document.getElementById('new-team-error').hidden = true">
     <form class="space-y-4 p-4" hx-post="/app/teams" hx-target="#team-table" hx-swap="outerHTML"
-      hx-include="#team-sort" hx-disabled-elt="find button" data-error-target="new-team-error"
+      hx-disabled-elt="find button" data-error-target="new-team-error"
       hx-on::after-request="if (event.detail.successful) this.closest('dialog').close()">
       <h3 class="text-lg font-semibold" id="new-team-title">New team</h3>
       <label class="block text-sm font-medium">Team name
