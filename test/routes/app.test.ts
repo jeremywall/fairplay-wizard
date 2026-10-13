@@ -141,24 +141,17 @@ describe("app routes", () => {
     expect(badYear.status).toBe(422);
   });
 
-  it("sorts the team list by any column", async () => {
+  it("lists teams in date order, oldest season first", async () => {
     const cookie = await signUp("Pat");
-    await post("/app/teams", { name: "Bears", year: "2025", season: "fall" }, { Cookie: cookie });
-    await post("/app/teams", { name: "Astros", year: "2026", season: "spring" }, { Cookie: cookie });
+    await post("/app/teams", { name: "Astros", year: "2026", season: "fall" }, { Cookie: cookie });
+    await post("/app/teams", { name: "Bears", year: "2026", season: "winter" }, { Cookie: cookie });
     const order = (page: string) => [...page.matchAll(/hx-push-url="\/teams\/[^"]+"[^>]*>([^<]+)</g)].map((m) => m[1]);
-    const list = (query: string) => exports.default.fetch(`${ORIGIN}/app/teams${query}`, { headers: { Cookie: cookie } }).then((r) => r.text());
 
-    expect(order(await list(""))).toEqual(["Astros", "Bears"]);
-    expect(order(await list("?sort=name&dir=desc"))).toEqual(["Bears", "Astros"]);
-    const bySeason = await list("?sort=season&dir=asc");
-    expect(order(bySeason)).toEqual(["Bears", "Astros"]);
-    // The active column's header flips the direction, and the address keeps the sort.
-    expect(bySeason).toContain('hx-get="/app/teams?sort=season&amp;dir=desc" hx-replace-url="/?sort=season&amp;dir=desc"');
-
-    const home = await exports.default.fetch(`${ORIGIN}/app/home?sort=name&dir=desc`, { headers: { Cookie: cookie } });
-    expect(order(await home.text())).toEqual(["Bears", "Astros"]);
-    // Adding a team keeps the table's sort.
-    const added = await post("/app/teams", { name: "Cubs", year: "2024", season: "winter", sort: "name", dir: "desc" }, { Cookie: cookie });
+    const home = await (await exports.default.fetch(`${ORIGIN}/app/home`, { headers: { Cookie: cookie } })).text();
+    expect(order(home)).toEqual(["Bears", "Astros"]);
+    expect(home).not.toContain("sort=");
+    // The table returned after adding a team is in date order too.
+    const added = await post("/app/teams", { name: "Cubs", year: "2025", season: "summer" }, { Cookie: cookie });
     expect(order(await added.text())).toEqual(["Cubs", "Bears", "Astros"]);
   });
 });

@@ -5,7 +5,7 @@ import { hasLinkedProvider } from "../db/accounts";
 import { addPlayer, listPlayers, removePlayer } from "../db/players";
 import { createTeam, getTeam, listTeamsForCoach, requireTeamAccess, updateTeamSettings } from "../db/teams";
 import { googleEnabled } from "../auth";
-import { readTeamInfo, readTeamSort, seasonFor } from "../domain/team-season";
+import { readTeamInfo, seasonFor } from "../domain/team-season";
 import { requireUser } from "../middleware/session";
 import { gameRoutes } from "./games";
 import { lineupRoutes } from "./lineup";
@@ -50,10 +50,9 @@ appRoutes.get("/home", async (c) => {
     listTeamsForCoach(c.env.DB, user.id),
     google ? hasLinkedProvider(c.env.DB, user.id, "google") : Promise.resolve(false),
   ]);
-  const sort = readTeamSort(c.req.query("sort"), c.req.query("dir"));
   const now = new Date();
   const defaults = { year: now.getUTCFullYear(), season: seasonFor(now) };
-  return c.html(teamsPage(user, teams, sort, defaults, { google: google ? { linked: googleLinked } : undefined, notice }));
+  return c.html(teamsPage(user, teams, defaults, { google: google ? { linked: googleLinked } : undefined, notice }));
 });
 
 appRoutes.use("/teams", requireUser);
@@ -71,21 +70,13 @@ appRoutes.use("/teams/:teamId/*", requireTeam);
 appRoutes.route("/teams/:teamId/lineup", lineupRoutes);
 appRoutes.route("/teams/:teamId/games", gameRoutes);
 
-// The team table, sorted by ?sort=<column>&dir=<asc|desc>.
-appRoutes.get("/teams", async (c) => {
-  const sort = readTeamSort(c.req.query("sort"), c.req.query("dir"));
-  return c.html(teamTable(await listTeamsForCoach(c.env.DB, c.get("user")!.id), sort));
-});
-
-// Creates a team and returns the team table, keeping the table's sort.
+// Creates a team and returns the team table.
 appRoutes.post("/teams", async (c) => {
   const user = c.get("user")!;
-  const form = await c.req.parseBody();
-  const read = readTeamInfo(form);
+  const read = readTeamInfo(await c.req.parseBody());
   if ("error" in read) return c.text(read.error, 422);
   await createTeam(c.env.DB, user.id, read.info);
-  const sort = readTeamSort(String(form.sort ?? ""), String(form.dir ?? ""));
-  return c.html(teamTable(await listTeamsForCoach(c.env.DB, user.id), sort));
+  return c.html(teamTable(await listTeamsForCoach(c.env.DB, user.id)));
 });
 
 appRoutes.get("/teams/:teamId", async (c) => {
